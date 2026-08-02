@@ -1,0 +1,53 @@
+# =========================
+# Zig
+# =========================
+
+.zig-cache/
+zig-out/
+
+# =========================
+# CMake
+# =========================
+
+build/
+
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+
+# =========================
+# macOS
+# =========================
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Finder
+._*
+
+# Spotlight
+.Spotlight-V100
+
+# Trash
+.Trashes
+
+# =========================
+# Editors
+# =========================
+
+.vscode/
+.idea/
+
+# Vim
+*.swp
+*.swo
+
+# =========================
+# Misc
+# =========================
+
+*.log
