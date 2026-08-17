@@ -6,6 +6,7 @@ pub const Buffer = opaque {};
 pub const Texture = opaque {};
 pub const Frame = opaque {};
 pub const RenderPass = opaque {};
+pub const ComputePass = opaque {};
 
 pub const ShaderSource = extern struct {
     source: [*]const u8,
@@ -59,9 +60,18 @@ extern fn metal_begin_render_pass(
 ) ?*RenderPass;
 extern fn metal_render_pass_set_pipeline(pass: *RenderPass, pipeline: *RenderPipeline) void;
 extern fn metal_render_pass_set_vertex_buffer(pass: *RenderPass, slot: u32, buffer: *Buffer) void;
+extern fn metal_render_pass_set_fragment_buffer(pass: *RenderPass, slot: u32, buffer: *Buffer) void;
 extern fn metal_render_pass_set_fragment_texture(pass: *RenderPass, slot: u32, texture: *Texture) void;
 extern fn metal_render_pass_draw(pass: *RenderPass, vertex_count: u32) void;
 extern fn metal_end_render_pass(pass: *RenderPass) void;
+
+extern fn metal_begin_compute_pass(frame: *Frame) ?*ComputePass;
+extern fn metal_compute_pass_set_pipeline(pass: *ComputePass, pipeline: *ComputePipeline) void;
+extern fn metal_compute_pass_set_buffer(pass: *ComputePass, slot: u32, buffer: *Buffer) void;
+extern fn metal_compute_pass_set_texture(pass: *ComputePass, slot: u32, texture: *Texture) void;
+extern fn metal_compute_pass_dispatch(pass: *ComputePass, width: u32, height: u32, depth: u32) void;
+extern fn metal_end_compute_pass(pass: *ComputePass) void;
+
 extern fn metal_present(frame: *Frame) void;
 
 pub fn create(raw_layer: *anyopaque, width: u32, height: u32) ?*Renderer {
@@ -145,6 +155,10 @@ pub fn renderPassSetVertexBuffer(pass: *RenderPass, slot: u32, buffer: *Buffer) 
     metal_render_pass_set_vertex_buffer(pass, slot, buffer);
 }
 
+pub fn renderPassSetFragmentBuffer(pass: *RenderPass, slot: u32, buffer: *Buffer) void {
+    metal_render_pass_set_fragment_buffer(pass, slot, buffer);
+}
+
 pub fn renderPassSetFragmentTexture(pass: *RenderPass, slot: u32, texture: *Texture) void {
     metal_render_pass_set_fragment_texture(pass, slot, texture);
 }
@@ -155,6 +169,30 @@ pub fn renderPassDraw(pass: *RenderPass, vertex_count: u32) void {
 
 pub fn endRenderPass(pass: *RenderPass) void {
     metal_end_render_pass(pass);
+}
+
+pub fn beginComputePass(frame: *Frame) ?*ComputePass {
+    return metal_begin_compute_pass(frame);
+}
+
+pub fn computePassSetPipeline(pass: *ComputePass, pipeline: *ComputePipeline) void {
+    metal_compute_pass_set_pipeline(pass, pipeline);
+}
+
+pub fn computePassSetBuffer(pass: *ComputePass, slot: u32, buffer: *Buffer) void {
+    metal_compute_pass_set_buffer(pass, slot, buffer);
+}
+
+pub fn computePassSetTexture(pass: *ComputePass, slot: u32, texture: *Texture) void {
+    metal_compute_pass_set_texture(pass, slot, texture);
+}
+
+pub fn computePassDispatch(pass: *ComputePass, width: u32, height: u32, depth: u32) void {
+    metal_compute_pass_dispatch(pass, width, height, depth);
+}
+
+pub fn endComputePass(pass: *ComputePass) void {
+    metal_end_compute_pass(pass);
 }
 
 pub fn present(frame: *Frame) void {

@@ -1,5 +1,6 @@
 #import "metal.h"
 #include <stdlib.h>
+#include <string.h>
 #include <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
@@ -24,6 +25,11 @@ struct MetalFrame {
 struct MetalRenderPass {
   MetalFrame *frame;
   __strong id<MTLRenderCommandEncoder> encoder;
+};
+struct MetalComputePass {
+  MetalFrame *frame;
+  __strong id<MTLComputeCommandEncoder> encoder;
+  __strong id<MTLComputePipelineState> pipeline;
 };
 
 
@@ -255,6 +261,10 @@ void metal_render_pass_set_vertex_buffer(MetalRenderPass *pass, uint32_t slot, M
     [pass->encoder setVertexBuffer:buffer->buffer offset:0 atIndex:slot];
 }
 
+void metal_render_pass_set_fragment_buffer(MetalRenderPass *pass, uint32_t slot, MetalBuffer *buffer) {
+    [pass->encoder setFragmentBuffer:buffer->buffer offset:0 atIndex:slot];
+}
+
 void metal_render_pass_set_fragment_texture(MetalRenderPass *pass, uint32_t slot, MetalTexture *texture) {
     [pass->encoder setFragmentTexture:texture->texture atIndex:slot];
 }
@@ -268,6 +278,51 @@ void metal_end_render_pass(MetalRenderPass *pass) {
     if (!pass) return;
     [pass->encoder endEncoding];
     pass->encoder = nil;
+    free(pass);
+}
+
+MetalComputePass *metal_begin_compute_pass(MetalFrame *frame) {
+    id<MTLComputeCommandEncoder> encoder = [frame->command computeCommandEncoder];
+    if (!encoder) return 0;
+
+    MetalComputePass *pass = calloc(1, sizeof(*pass));
+    if (!pass) return 0;
+
+    pass->frame = frame;
+    pass->encoder = encoder;
+    return pass;
+}
+
+void metal_compute_pass_set_pipeline(MetalComputePass *pass, MetalComputePipeline *pipeline) {
+    pass->pipeline = pipeline->state;
+    [pass->encoder setComputePipelineState:pipeline->state];
+}
+
+void metal_compute_pass_set_buffer(MetalComputePass *pass, uint32_t slot, MetalBuffer *buffer) {
+    [pass->encoder setBuffer:buffer->buffer offset:0 atIndex:slot];
+}
+
+void metal_compute_pass_set_texture(MetalComputePass *pass, uint32_t slot, MetalTexture *texture) {
+    [pass->encoder setTexture:texture->texture atIndex:slot];
+}
+
+void metal_compute_pass_dispatch(MetalComputePass *pass, uint32_t width, uint32_t height, uint32_t depth) {
+    if (!pass->pipeline || width == 0 || height == 0 || depth == 0) return;
+
+    NSUInteger x = pass->pipeline.threadExecutionWidth;
+    NSUInteger y = pass->pipeline.maxTotalThreadsPerThreadgroup / x;
+    if (y == 0) y = 1;
+
+    MTLSize threads = MTLSizeMake(width, height, depth);
+    MTLSize group = MTLSizeMake(x, y, 1);
+    [pass->encoder dispatchThreads:threads threadsPerThreadgroup:group];
+}
+
+void metal_end_compute_pass(MetalComputePass *pass) {
+    if (!pass) return;
+    [pass->encoder endEncoding];
+    pass->encoder = nil;
+    pass->pipeline = nil;
     free(pass);
 }
 

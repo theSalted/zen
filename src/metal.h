@@ -15,6 +15,7 @@ typedef struct MetalBuffer MetalBuffer;
 typedef struct MetalTexture MetalTexture;
 typedef struct MetalFrame MetalFrame;
 typedef struct MetalRenderPass MetalRenderPass;
+typedef struct MetalComputePass MetalComputePass;
 
 typedef struct MetalShaderSource {
   const char *source;
@@ -53,10 +54,24 @@ void metal_render_pass_set_pipeline(MetalRenderPass *pass, MetalRenderPipeline
 *pipeline);
 void metal_render_pass_set_vertex_buffer(MetalRenderPass *pass, uint32_t slot,
 MetalBuffer *buffer);
+void metal_render_pass_set_fragment_buffer(MetalRenderPass *pass, uint32_t slot,
+MetalBuffer *buffer);
 void metal_render_pass_set_fragment_texture(MetalRenderPass *pass, uint32_t slot,
 MetalTexture *texture);
 void metal_render_pass_draw(MetalRenderPass *pass, uint32_t vertex_count);
 void metal_end_render_pass(MetalRenderPass *pass);
+
+MetalComputePass *metal_begin_compute_pass(MetalFrame *frame);
+void metal_compute_pass_set_pipeline(MetalComputePass *pass, MetalComputePipeline
+*pipeline);
+void metal_compute_pass_set_buffer(MetalComputePass *pass, uint32_t slot,
+MetalBuffer *buffer);
+void metal_compute_pass_set_texture(MetalComputePass *pass, uint32_t slot,
+MetalTexture *texture);
+void metal_compute_pass_dispatch(MetalComputePass *pass, uint32_t width, uint32_t
+height, uint32_t depth);
+void metal_end_compute_pass(MetalComputePass *pass);
+
 void metal_present(MetalFrame *frame);
 
 #ifdef __cplusplus
