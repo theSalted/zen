@@ -1,22 +1,6 @@
 const std = @import("std");
 const sdl = @import("sdl");
-
-const MetalRenderer = opaque {};
-const MetalRenderPipeline = opaque {};
-
-extern fn metal_create(raw_layer: *anyopaque, width: u32, height: u32) ?*MetalRenderer;
-extern fn metal_render(renderer: *MetalRenderer, pipeline: *MetalRenderPipeline) void;
-extern fn metal_resize(renderer: *MetalRenderer, width: u32, height: u32) void;
-extern fn metal_destroy(renderer: *MetalRenderer) void;
-
-extern fn metal_create_render_pipeline(
-    renderer: *MetalRenderer,
-    shader_source: [*]const u8,
-    shader_source_len: usize,
-    vertex_name: [*:0]const u8,
-    fragment_name: [*:0]const u8,
-) ?*MetalRenderPipeline;
-extern fn metal_destroy_render_pipeline(pipeline: *MetalRenderPipeline) void;
+const metal = @import("metal.zig");
 
 pub fn main(init: std.process.Init) !void {
     _ = init;
@@ -52,16 +36,27 @@ pub fn main(init: std.process.Init) !void {
     }
 
     const shader = @embedFile("shaders/fullscreen_triangle.metal");
+    const shader_sources = [_]metal.ShaderSource{
+        .{
+            .source = shader.ptr,
+            .source_len = shader.len,
+        },
+    };
 
-    const metal = metal_create(layer.?, width, height) orelse {
+    const renderer = metal.create(layer.?, width, height) orelse {
         return error.MetalCreateFailed;
     };
-    defer metal_destroy(metal);
+    defer metal.destroy(renderer);
 
-    const pipeline = metal_create_render_pipeline(metal, shader.ptr, shader.len, "vertex_main", "fragment_main") orelse {
+    const library = metal.createShaderLibrary(renderer, &shader_sources) orelse {
+        return error.MetalShaderLibraryFailed;
+    };
+    defer metal.destroyShaderLibrary(library);
+
+    const pipeline = metal.createRenderPipeline(renderer, library, "vertex_main", "fragment_main") orelse {
         return error.MetalPipelineFailed;
     };
-    defer metal_destroy_render_pipeline(pipeline);
+    defer metal.destroyRenderPipeline(pipeline);
 
     var running = true;
 
@@ -75,6 +70,15 @@ pub fn main(init: std.process.Init) !void {
             }
         }
 
-        metal_render(metal, pipeline);
+        const frame = metal.beginFrame(renderer) orelse continue;
+        const pass = metal.beginRenderPass(frame, 0.02, 0.02, 0.025, 1.0) orelse {
+            metal.present(frame);
+            return error.MetalRenderPassFailed;
+        };
+
+        metal.renderPassSetPipeline(pass, pipeline);
+        metal.renderPassDraw(pass, 3);
+        metal.endRenderPass(pass);
+        metal.present(frame);
     }
 }
