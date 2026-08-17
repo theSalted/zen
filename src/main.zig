@@ -2,11 +2,21 @@ const std = @import("std");
 const sdl = @import("sdl");
 
 const MetalRenderer = opaque {};
+const MetalRenderPipeline = opaque {};
 
 extern fn metal_create(raw_layer: *anyopaque, width: u32, height: u32) ?*MetalRenderer;
-extern fn metal_render(renderer: *MetalRenderer) void;
+extern fn metal_render(renderer: *MetalRenderer, pipeline: *MetalRenderPipeline) void;
 extern fn metal_resize(renderer: *MetalRenderer, width: u32, height: u32) void;
 extern fn metal_destroy(renderer: *MetalRenderer) void;
+
+extern fn metal_create_render_pipeline(
+    renderer: *MetalRenderer,
+    shader_source: [*]const u8,
+    shader_source_len: usize,
+    vertex_name: [*:0]const u8,
+    fragment_name: [*:0]const u8,
+) ?*MetalRenderPipeline;
+extern fn metal_destroy_render_pipeline(pipeline: *MetalRenderPipeline) void;
 
 pub fn main(init: std.process.Init) !void {
     _ = init;
@@ -36,10 +46,22 @@ pub fn main(init: std.process.Init) !void {
 
     const layer = sdl.SDL_Metal_GetLayer(metal_view);
 
+    if (layer == null) {
+        std.log.err("Couldn't create metal render layer: {s}", .{sdl.SDL_GetError()});
+        return error.SdlCreateMetalLayerFailed;
+    }
+
+    const shader = @embedFile("shaders/fullscreen_triangle.metal");
+
     const metal = metal_create(layer.?, width, height) orelse {
         return error.MetalCreateFailed;
     };
     defer metal_destroy(metal);
+
+    const pipeline = metal_create_render_pipeline(metal, shader.ptr, shader.len, "vertex_main", "fragment_main") orelse {
+        return error.MetalPipelineFailed;
+    };
+    defer metal_destroy_render_pipeline(pipeline);
 
     var running = true;
 
@@ -53,6 +75,6 @@ pub fn main(init: std.process.Init) !void {
             }
         }
 
-        metal_render(metal);
+        metal_render(metal, pipeline);
     }
 }
