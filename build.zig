@@ -27,6 +27,15 @@ pub fn build(b: *std.Build) void {
     const vendor_step = b.step("vendor", "Build vendor libraries");
     vendor_step.dependOn(&vendor_build.step);
 
+    const sdl_translate = b.addTranslateC(.{
+        .root_source_file = b.path("src/sdl.h"),
+        .target = target,
+        .optimize = optimize,
+    });
+    sdl_translate.addIncludePath(b.path("vendor/SDL/include"));
+
+    const sdl_mod = sdl_translate.createModule();
+
     // Public Zen module.
     const mod = b.addModule("zen", .{
         .root_source_file = b.path("src/root.zig"),
@@ -37,6 +46,7 @@ pub fn build(b: *std.Build) void {
     mod.addIncludePath(b.path("vendor/SDL/include"));
     mod.addLibraryPath(b.path("build/vendor/Release"));
     mod.linkSystemLibrary("SDL3", .{});
+    mod.addImport("sdl", sdl_mod);
 
     // Application executable.
     const exe = b.addExecutable(.{
@@ -47,9 +57,15 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "zen", .module = mod },
+                .{ .name = "sdl", .module = sdl_mod },
             },
         }),
     });
+
+    exe.root_module.link_libc = true;
+    exe.root_module.addIncludePath(b.path("vendor/SDL/include"));
+    exe.root_module.addLibraryPath(b.path("build/vendor/Release"));
+    exe.root_module.linkSystemLibrary("SDL3", .{});
 
     // Configure runtime lookup and install the appropriate shared library.
     switch (target.result.os.tag) {
@@ -59,9 +75,9 @@ pub fn build(b: *std.Build) void {
             });
 
             const install_sdl = b.addInstallFileWithDir(
-                b.path("build/vendor/Release/libSDL3.dylib"),
+                b.path("build/vendor/Release/libSDL3.0.dylib"),
                 .bin,
-                "libSDL3.dylib",
+                "libSDL3.0.dylib",
             );
 
             b.getInstallStep().dependOn(&install_sdl.step);
@@ -73,9 +89,9 @@ pub fn build(b: *std.Build) void {
             });
 
             const install_sdl = b.addInstallFileWithDir(
-                b.path("build/vendor/Release/libSDL3.so"),
+                b.path("build/vendor/Release/libSDL3.so.0"),
                 .bin,
-                "libSDL3.so",
+                "libSDL3.so.0",
             );
 
             b.getInstallStep().dependOn(&install_sdl.step);
