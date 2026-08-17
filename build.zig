@@ -67,6 +67,13 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addLibraryPath(b.path("build/vendor/Release"));
     exe.root_module.linkSystemLibrary("SDL3", .{});
 
+    exe.root_module.addCSourceFile(.{ .file = b.path("src/metal.m"), .flags = &.{"-fobjc-arc"} });
+
+    exe.root_module.linkFramework("Foundation", .{});
+    exe.root_module.linkFramework("QuartzCore", .{});
+    exe.root_module.linkFramework("Metal", .{});
+    exe.root_module.linkFramework("CoreGraphics", .{});
+
     // Configure runtime lookup and install the appropriate shared library.
     switch (target.result.os.tag) {
         .macos => {

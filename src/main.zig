@@ -1,6 +1,13 @@
 const std = @import("std");
 const sdl = @import("sdl");
 
+const MetalRenderer = opaque {};
+
+extern fn metal_create(raw_layer: *anyopaque, width: u32, height: u32) ?*MetalRenderer;
+extern fn metal_render(renderer: *MetalRenderer) void;
+extern fn metal_resize(renderer: *MetalRenderer, width: u32, height: u32) void;
+extern fn metal_destroy(renderer: *MetalRenderer) void;
+
 pub fn main(init: std.process.Init) !void {
     _ = init;
 
@@ -12,18 +19,27 @@ pub fn main(init: std.process.Init) !void {
     }
     defer sdl.SDL_Quit();
 
-    var window: ?*sdl.SDL_Window = null;
-    var renderer: ?*sdl.SDL_Renderer = null;
+    const width = 1280;
+    const height = 720;
 
-    if (!sdl.SDL_CreateWindowAndRenderer("Zen", 1280, 720, sdl.SDL_WINDOW_RESIZABLE, &window, &renderer)) {
-        std.log.err("Couldn't crate window/renderer: {s}", .{sdl.SDL_GetError()});
-        return error.SdlCreateWindowAndRendererFailed;
+    const window = sdl.SDL_CreateWindow("Zen", width, height, sdl.SDL_WINDOW_RESIZABLE | sdl.SDL_WINDOW_METAL);
+
+    if (window == null) {
+        std.log.err("Couldn't crate window: {s}", .{sdl.SDL_GetError()});
+        return error.SdlCreateWindowFailed;
     }
 
-    defer sdl.SDL_DestroyRenderer(renderer.?);
     defer sdl.SDL_DestroyWindow(window.?);
 
-    _ = sdl.SDL_SetRenderLogicalPresentation(renderer, 1280, 720, sdl.SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    const metal_view = sdl.SDL_Metal_CreateView(window);
+    defer sdl.SDL_Metal_DestroyView(metal_view);
+
+    const layer = sdl.SDL_Metal_GetLayer(metal_view);
+
+    const metal = metal_create(layer.?, width, height) orelse {
+        return error.MetalCreateFailed;
+    };
+    defer metal_destroy(metal);
 
     var running = true;
 
@@ -36,5 +52,7 @@ pub fn main(init: std.process.Init) !void {
                 else => {},
             }
         }
+
+        metal_render(metal);
     }
 }
