@@ -12,6 +12,7 @@ pub fn build(b: *std.Build) void {
         "-B",
         "build/vendor",
         "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     });
 
     const vendor_build = b.addSystemCommand(&.{
@@ -22,10 +23,24 @@ pub fn build(b: *std.Build) void {
         "Release",
     });
 
+    const compile_commands = b.addSystemCommand(&.{
+        "cmake",
+        "-P",
+        "tools/write_compile_commands.cmake",
+    });
+
+    compile_commands.step.dependOn(&vendor_config.step);
     vendor_build.step.dependOn(&vendor_config.step);
+
+    const compile_commands_step = b.step(
+        "compile-commands",
+        "Generate compile_commands.json",
+    );
+    compile_commands_step.dependOn(&compile_commands.step);
 
     const vendor_step = b.step("vendor", "Build vendor libraries");
     vendor_step.dependOn(&vendor_build.step);
+    vendor_step.dependOn(&compile_commands.step);
 
     const sdl_translate = b.addTranslateC(.{
         .root_source_file = b.path("src/sdl.h"),
@@ -67,7 +82,10 @@ pub fn build(b: *std.Build) void {
     exe.root_module.addLibraryPath(b.path("build/vendor/Release"));
     exe.root_module.linkSystemLibrary("SDL3", .{});
 
-    exe.root_module.addCSourceFile(.{ .file = b.path("src/metal.m"), .flags = &.{"-fobjc-arc"} });
+    exe.root_module.addCSourceFile(.{
+        .file = b.path("src/metal.m"),
+        .flags = &.{"-fobjc-arc"},
+    });
 
     exe.root_module.linkFramework("Foundation", .{});
     exe.root_module.linkFramework("QuartzCore", .{});
