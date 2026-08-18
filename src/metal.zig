@@ -12,6 +12,29 @@ pub const ShaderSource = extern struct {
     source: [*]const u8,
     source_len: usize,
 };
+pub const TextureFormat = enum(c_int) {
+    bgra8_unorm,
+    rgba8_unorm,
+    rgba16_float,
+    rgba32_float,
+    r32_float,
+    depth32_float,
+};
+pub const TextureUsage = packed struct(u32) {
+    shader_read: bool = false,
+    shader_write: bool = false,
+    render_target: bool = false,
+    depth_stencil: bool = false,
+    _: u28 = 0,
+};
+pub const TextureDesc = extern struct {
+    width: u32,
+    height: u32,
+    mip_count: u32 = 1,
+    sample_count: u32 = 1,
+    format: TextureFormat,
+    usage: u32,
+};
 
 extern fn metal_create(raw_layer: *anyopaque, width: u32, height: u32) ?*Renderer;
 extern fn metal_resize(renderer: *Renderer, width: u32, height: u32) void;
@@ -47,7 +70,7 @@ extern fn metal_create_buffer(
 extern fn metal_buffer_write(buffer: *Buffer, data: *const anyopaque, size: usize) void;
 extern fn metal_destroy_buffer(buffer: *Buffer) void;
 
-extern fn metal_create_texture_2d(renderer: *Renderer, width: u32, height: u32) ?*Texture;
+extern fn metal_create_texture(renderer: *Renderer, desc: *const TextureDesc) ?*Texture;
 extern fn metal_destroy_texture(texture: *Texture) void;
 
 extern fn metal_begin_frame(renderer: *Renderer) ?*Frame;
@@ -131,8 +154,8 @@ pub fn destroyBuffer(buffer: *Buffer) void {
     metal_destroy_buffer(buffer);
 }
 
-pub fn createTexture2D(renderer: *Renderer, width: u32, height: u32) ?*Texture {
-    return metal_create_texture_2d(renderer, width, height);
+pub fn createTexture(renderer: *Renderer, desc: *const TextureDesc) ?*Texture {
+    return metal_create_texture(renderer, &desc);
 }
 
 pub fn destroyTexture(texture: *Texture) void {

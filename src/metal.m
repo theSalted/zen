@@ -40,6 +40,39 @@ struct MetalComputePass {
   __strong id<MTLComputePipelineState> pipeline;
 };
 
+static MTLPixelFormat metal_pixel_format(MetalTextureFormat format) {
+  switch (format) {
+  case METAL_TEXTURE_FORMAT_BGRA8_UNORM:
+    return MTLPixelFormatBGRA8Unorm;
+  case METAL_TEXTURE_FORMAT_RGBA8_UNORM:
+    return MTLPixelFormatRGBA8Unorm;
+  case METAL_TEXTURE_FORMAT_RGBA16_FLOAT:
+    return MTLPixelFormatRGBA16Float;
+  case METAL_TEXTURE_FORMAT_RGBA32_FLOAT:
+    return MTLPixelFormatRGBA32Float;
+  case METAL_TEXTURE_FORMAT_R32_FLOAT:
+    return MTLPixelFormatR32Float;
+  case METAL_TEXTURE_FORMAT_DEPTH32_FLOAT:
+    return MTLPixelFormatDepth32Float;
+  }
+}
+static MTLTextureUsage metal_texture_usage(uint32_t usage) {
+  MTLTextureUsage result = 0;
+
+  if (usage & METAL_TEXTURE_USAGE_SHADER_READ) {
+    result |= MTLTextureUsageShaderRead;
+  }
+
+  if (usage & METAL_TEXTURE_USAGE_SHADER_WRITE) {
+    result |= MTLTextureUsageShaderWrite;
+  }
+
+  if (usage & METAL_TEXTURE_USAGE_RENDER_TARGET) {
+    result |= MTLTextureUsageRenderTarget;
+  }
+
+  return result;
+}
 MetalRenderer *metal_create(void *raw_layer, uint32_t width, uint32_t height) {
   CAMetalLayer *layer = (__bridge CAMetalLayer *)raw_layer;
   id<MTLDevice> device = MTLCreateSystemDefaultDevice();
@@ -232,18 +265,23 @@ void metal_destroy_buffer(MetalBuffer *buffer) {
   free(buffer);
 }
 
-MetalTexture *metal_create_texture_2d(MetalRenderer *renderer, uint32_t width,
-                                      uint32_t height) {
-  MTLTextureDescriptor *desc = [MTLTextureDescriptor
-      texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
-                                   width:width
-                                  height:height
-                               mipmapped:NO];
-  desc.usage = MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite |
-               MTLTextureUsageRenderTarget;
-  desc.storageMode = MTLStorageModePrivate;
+MetalTexture *metal_create_texture(MetalRenderer *renderer,
+                                   const MetalTextureDesc *desc) {
+  MTLTextureDescriptor *metal_desc = [MTLTextureDescriptor new];
 
-  id<MTLTexture> texture = [renderer->device newTextureWithDescriptor:desc];
+  metal_desc.textureType =
+      desc->sample_count > 1 ? MTLTextureType2DMultisample : MTLTextureType2D;
+
+  metal_desc.pixelFormat = metal_pixel_format(desc->format);
+  metal_desc.width = desc->width;
+  metal_desc.height = desc->height;
+  metal_desc.mipmapLevelCount = desc->mip_count == 0 ? 1 : desc->mip_count;
+  metal_desc.sampleCount = desc->sample_count == 0 ? 1 : desc->sample_count;
+  metal_desc.usage = metal_texture_usage(desc->usage);
+  metal_desc.storageMode = MTLStorageModePrivate;
+
+  id<MTLTexture> texture =
+      [renderer->device newTextureWithDescriptor:metal_desc];
   if (!texture)
     return 0;
 
