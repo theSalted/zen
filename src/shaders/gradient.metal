@@ -53,7 +53,6 @@ fragment float4 fragment_main(
     return image.sample(s, in.uv);
 }
 
-
 // ray
 struct Ray {
     float3 origin;
@@ -66,17 +65,17 @@ float3 ray_position_at(Ray ray, float t) {
 
 float hit_sphere(float3 center, float radius, Ray ray) {
     float3 oc = center - ray.origin;
-    float a = dot(ray.direction, ray.direction);
-    float b = -2.0 * dot(ray.direction, oc);
-    float c = dot(oc, oc) - radius * radius;
-    float discriminant = b * b - 4.0 * a * c;
+    float a = length_squared(ray.direction);
+    float h = dot(ray.direction, oc);
+    float c = length_squared(oc) - radius * radius;
+    float discriminant = h * h - a * c;
     if (discriminant < 0.0) {
         return -1.0;
     } else {
-        return (-b - sqrt(discriminant)) / (2.0 * a);
+        return (h - sqrt(discriminant)) / a;
     }
     return discriminant >= 0;
-};
+}
 
 float3 ray_color(Ray ray) {
     float t = hit_sphere(float3(0.0, 0.0, -1.0), 0.5, ray);
