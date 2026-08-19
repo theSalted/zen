@@ -50,3 +50,40 @@ fragment float4 fragment_main(
     constexpr sampler s(address::clamp_to_edge, filter::nearest);
     return image.sample(s, in.uv);
 }
+
+
+// ray
+struct Ray {
+    float3 origin;
+    float3 direction;
+};
+
+float3 ray_position_at(Ray ray, float t) {
+    return ray.origin + t * ray.direction;
+}
+
+struct RayTraceInput {
+    uint image_width;
+    uint image_height;
+
+    float3 camera_center;
+    float3 pixel_delta_u;
+    float3 pixel_delta_v;
+    float2 viewport_upper_left;
+};
+
+kernel void ray_trace_kernel(
+    texture2d<float, access::write> image [[texture(0)]],
+    uint2 gid [[thread_position_in_grid]]
+) {
+    uint width = image.get_width();
+    uint height = image.get_height();
+
+    if (gid.x >= width || gid.y >= height) {
+        return;
+    }
+
+
+
+    image.write(metal::float4(0.0, 0.0, 0.0, 1.0), gid);
+}

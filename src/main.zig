@@ -43,23 +43,23 @@ pub fn main(init: std.process.Init) !void {
         },
     };
 
-    const renderer = metal.create(layer.?, width, height) orelse {
+    const renderer = metal.Renderer.init(layer.?, width, height) orelse {
         return error.MetalCreateFailed;
     };
-    defer metal.destroy(renderer);
+    defer renderer.deinit();
 
-    const library = metal.createShaderLibrary(renderer, &shader_sources) orelse {
+    const library = metal.ShaderLibrary.init(renderer, &shader_sources) orelse {
         return error.MetalShaderLibraryFailed;
     };
-    defer metal.destroyShaderLibrary(library);
+    defer library.deinit();
 
-    const render_pipeline = metal.createRenderPipeline(renderer, library, "vertex_main", "fragment_main") orelse
+    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_main") orelse
         return error.MetalRenderPipelineFailed;
-    defer metal.destroyRenderPipeline(render_pipeline);
+    defer render_pipeline.deinit();
 
-    const compute_pipeline = metal.createComputePipeline(renderer, library, "gradient_kernel") orelse
+    const compute_pipeline = metal.ComputePipeline.init(renderer, library, "gradient_kernel") orelse
         return error.MetalComputePipelineFailed;
-    defer metal.destroyComputePipeline(compute_pipeline);
+    defer compute_pipeline.deinit();
 
     const image_desc = metal.TextureDesc{
         .width = width,
@@ -71,10 +71,10 @@ pub fn main(init: std.process.Init) !void {
         })),
     };
 
-    const image = metal.createTexture(renderer, &image_desc) orelse {
+    const image = metal.Texture.init(renderer, &image_desc) orelse {
         return error.MetalTextureFailed;
     };
-    defer metal.destroyTexture(image);
+    defer image.deinit();
 
     var running = true;
 
@@ -88,25 +88,32 @@ pub fn main(init: std.process.Init) !void {
             }
         }
 
-        const frame = metal.beginFrame(renderer) orelse continue;
-        const compute_pass = metal.beginComputePass(frame) orelse {
-            metal.present(frame);
+        const frame = metal.Frame.init(renderer) orelse continue;
+        const compute_pass = metal.ComputePass.init(frame) orelse {
+            frame.present();
             return error.MetalComputePassFailed;
         };
-        metal.computePassSetPipeline(compute_pass, compute_pipeline);
-        metal.computePassSetTexture(compute_pass, 0, image);
-        metal.computePassDispatch(compute_pass, width, height, 1);
-        metal.endComputePass(compute_pass);
 
-        const render_pass = metal.beginRenderPass(frame, 0.0, 0.0, 0.0, 1.0) orelse {
-            metal.present(frame);
+        compute_pass.setPipeline(compute_pipeline);
+        compute_pass.setTexture(0, image);
+        compute_pass.dispatch(width, height, 1);
+        compute_pass.end();
+
+        const render_pass = metal.RenderPass.init(
+            frame,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+        ) orelse {
+            frame.present();
             return error.MetalRenderPassFailed;
         };
 
-        metal.renderPassSetPipeline(render_pass, render_pipeline);
-        metal.renderPassSetFragmentTexture(render_pass, 0, image);
-        metal.renderPassDraw(render_pass, 3);
-        metal.endRenderPass(render_pass);
-        metal.present(frame);
+        render_pass.setPipeline(render_pipeline);
+        render_pass.setFragmentTexture(0, image);
+        render_pass.draw(3);
+        render_pass.end();
+        frame.present();
     }
 }
