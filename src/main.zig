@@ -12,6 +12,13 @@ pub const RayTraceInput = extern struct {
     pixel_delta_u: Vector3,
     pixel_delta_v: Vector3,
     viewport_upper_left: Vector3,
+
+    sphere_count: u32,
+};
+
+pub const Sphere = extern struct {
+    center: Vector3,
+    radius: f32,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -89,9 +96,16 @@ pub fn main(init: std.process.Init) !void {
     var image_width: u32 = width;
     var image_height: u32 = height;
 
-    const buffer = metal.Buffer.init(renderer, RayTraceInput) orelse
+    const param_buffer = metal.Buffer.init(renderer, RayTraceInput) orelse
         return error.MetalBufferFailed;
-    defer buffer.deinit();
+    defer param_buffer.deinit();
+
+    const spheres = [_]Sphere{
+        .{ .center = .{ 0, 0, -1 }, .radius = 0.5 },
+    };
+    const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
+        return error.MetalBufferFailed;
+    defer sphere_buffer.deinit();
 
     var running = true;
 
@@ -167,12 +181,14 @@ pub fn main(init: std.process.Init) !void {
             .pixel_delta_u = pixel_delta_u,
             .pixel_delta_v = pixel_delta_v,
             .viewport_upper_left = viewport_upper_left,
+            .sphere_count = spheres.len,
         };
-        buffer.write(&params);
+        param_buffer.write(&params);
 
         compute_pass.setPipeline(compute_pipeline);
         compute_pass.setTexture(0, image);
-        compute_pass.setBuffer(0, buffer);
+        compute_pass.setBuffer(0, param_buffer);
+        compute_pass.setBuffer(1, sphere_buffer);
         compute_pass.dispatch(image_width, image_height, 1);
         compute_pass.end();
 

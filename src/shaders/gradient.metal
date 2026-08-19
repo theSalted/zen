@@ -59,32 +59,89 @@ struct Ray {
     float3 direction;
 };
 
+struct HitRecord {
+    float3 point;
+    float3 normal;
+    float t;
+};
+
+struct Sphere {
+    float3 center;
+    float radius;
+};
+
 float3 ray_position_at(Ray ray, float t) {
     return ray.origin + t * ray.direction;
 }
 
-float hit_sphere(float3 center, float radius, Ray ray) {
-    float3 oc = center - ray.origin;
+bool sphere_hit(
+    Sphere sphere,
+    Ray ray,
+    float ray_tmin,
+    float ray_tmax,
+    thread HitRecord& rec
+) {
+    float3 oc = sphere.center - ray.origin;
+
     float a = length_squared(ray.direction);
     float h = dot(ray.direction, oc);
-    float c = length_squared(oc) - radius * radius;
+    float c = length_squared(oc) - sphere.radius * sphere.radius;
+
     float discriminant = h * h - a * c;
     if (discriminant < 0.0) {
-        return -1.0;
-    } else {
-        return (h - sqrt(discriminant)) / a;
+        return false;
     }
-    return discriminant >= 0;
+
+    float sqrtd = sqrt(discriminant);
+
+    float root = (h - sqrtd) / a;
+    if (root <= ray_tmin || ray_tmax <= root) {
+        root = (h + sqrtd) / a;
+        if (root <= ray_tmin || ray_tmax <= root) {
+            return false;
+        }
+    }
+
+    rec.t = root;
+    rec.point = ray_position_at(ray, rec.t);
+    rec.normal = (rec.point - sphere.center) / sphere.radius;
+
+    return true;
 }
 
-float3 ray_color(Ray ray) {
-    float t = hit_sphere(float3(0.0, 0.0, -1.0), 0.5, ray);
-    if (t > 0.0) {
-        float3 N = normalize(ray_position_at(ray, t) - float3(0.0, 0.0, -1.0));
-        return 0.5 * float3(N.x + 1.0, N.y + 1.0, N.z + 1.0);
+bool hit_world(
+    Ray ray,
+    float ray_tmin,
+    float ray_tmax,
+    constant Sphere* spheres,
+    uint sphere_count,
+    thread HitRecord& rec
+) {
+    HitRecord temp_rec;
+    bool hit_anything = false;
+    float closet_so_far = ray_tmax;
+
+    for (uint i = 0; i < sphere_count; i += 1) {
+        if (sphere_hit(spheres[i], ray, ray_tmin, closet_so_far, temp_rec)) {
+            hit_anything = true;
+            closet_so_far = temp_rec.t;
+            rec = temp_rec;
+        }
     }
+
+    return hit_anything;
+}
+
+float3 trace_ray(Ray ray, constant Sphere* spheres, uint sphere_count) {
+    HitRecord rec;
+
+    if (hit_world(ray, 0.001, INFINITY, spheres, sphere_count, rec)) {
+        return 0.5 * (rec.normal + float3(1.0));
+    }
+
     float3 unit_direction = normalize(ray.direction);
-    float3 a = 0.5 * (unit_direction.y + 1.0);
+    float a = 0.5 * (unit_direction.y + 1.0);
+
     return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
 }
 
@@ -96,11 +153,14 @@ struct RayTraceInput {
     float3 pixel_delta_u;
     float3 pixel_delta_v;
     float3 viewport_upper_left;
+
+    uint sphere_count;
 };
 
 kernel void ray_trace_kernel(
     texture2d<float, access::write> image [[texture(0)]],
     constant RayTraceInput& input [[buffer(0)]],
+    constant Sphere* spheres [[buffer(1)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     uint width = image.get_width();
@@ -113,7 +173,7 @@ kernel void ray_trace_kernel(
     float3 pixel_center = input.viewport_upper_left + (gid.x + 0.5) * input.pixel_delta_u + (gid.y + 0.5) * input.pixel_delta_v;
     float3 camera_center = pixel_center - input.camera_center;
     Ray ray = {input.camera_center, camera_center};
-    float3 color = ray_color(ray);
+    float3 color = trace_ray(ray, spheres, input.sphere_count);
 
-    image.write(metal::float4(color.x, color.y, color.z, 1.0), gid);
+    image.write(float4(color, 1.0), gid);
 }
