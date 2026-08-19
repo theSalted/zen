@@ -66,18 +66,18 @@ float3 ray_position_at(Ray ray, float t) {
 
 bool hit_sphere(float3 center, float radius, Ray ray) {
     float3 oc = center - ray.origin;
-    float3 a = dot(ray.direction, ray.direction);
-    float3 b = -2.0 * dot(ray.direction, oc);
-    float3 c = dot(oc, oc) - radius * radius;
-    float3 discriminant = b * b - 4 * a * c;
-    return all(discriminant >= 0);
+    float a = dot(ray.direction, ray.direction);
+    float b = -2.0 * dot(ray.direction, oc);
+    float c = dot(oc, oc) - radius * radius;
+    float discriminant = b * b - 4.0 * a * c;
+    return discriminant >= 0;
 };
 
 float3 ray_color(Ray ray) {
     if (hit_sphere(float3(0.0, 0.0, -1.0), 0.5, ray)) {
         return float3(1.0, 0.0, 0.0);
     }
-    float3 unit_direction = ray.direction;
+    float3 unit_direction = normalize(ray.direction);
     float3 a = 0.5 * (unit_direction.y + 1.0);
     return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
 }
