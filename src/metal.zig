@@ -155,7 +155,7 @@ pub fn destroyBuffer(buffer: *Buffer) void {
 }
 
 pub fn createTexture(renderer: *Renderer, desc: *const TextureDesc) ?*Texture {
-    return metal_create_texture(renderer, &desc);
+    return metal_create_texture(renderer, desc);
 }
 
 pub fn destroyTexture(texture: *Texture) void {
