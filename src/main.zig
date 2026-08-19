@@ -48,10 +48,10 @@ pub fn main(init: std.process.Init) !void {
     };
     defer metal.destroy(renderer);
 
-    // const library = metal.createShaderLibrary(renderer, &shader_sources) orelse {
-    //     return error.MetalShaderLibraryFailed;
-    // };
-    // defer metal.destroyShaderLibrary(library);
+    const library = metal.createShaderLibrary(renderer, &shader_sources) orelse {
+        return error.MetalShaderLibraryFailed;
+    };
+    defer metal.destroyShaderLibrary(library);
 
     const render_pipeline = metal.createRenderPipeline(renderer, library, "vertex_main", "fragment_main") orelse
         return error.MetalRenderPipelineFailed;
