@@ -67,7 +67,7 @@ pub fn main(init: std.process.Init) !void {
         return error.MetalRenderPipelineFailed;
     defer render_pipeline.deinit();
 
-    const compute_pipeline = metal.ComputePipeline.init(renderer, library, "gradient_kernel") orelse
+    const compute_pipeline = metal.ComputePipeline.init(renderer, library, "ray_trace_kernel") orelse
         return error.MetalComputePipelineFailed;
     defer compute_pipeline.deinit();
 

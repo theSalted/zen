@@ -7,6 +7,8 @@ struct VertexOut {
     float2 uv;
 };
 
+
+//unused
 kernel void gradient_kernel(
     texture2d<float, access::write> image [[texture(0)]],
     uint2 gid [[thread_position_in_grid]]
@@ -62,6 +64,12 @@ float3 ray_position_at(Ray ray, float t) {
     return ray.origin + t * ray.direction;
 }
 
+float3 ray_color(Ray ray) {
+    float3 unit_direction = ray.direction;
+    float3 a = 0.5 * (unit_direction.y + 1.0);
+    return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
+}
+
 struct RayTraceInput {
     uint image_width;
     uint image_height;
@@ -69,11 +77,12 @@ struct RayTraceInput {
     float3 camera_center;
     float3 pixel_delta_u;
     float3 pixel_delta_v;
-    float2 viewport_upper_left;
+    float3 viewport_upper_left;
 };
 
 kernel void ray_trace_kernel(
     texture2d<float, access::write> image [[texture(0)]],
+    constant RayTraceInput& input [[buffer(0)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     uint width = image.get_width();
@@ -83,7 +92,10 @@ kernel void ray_trace_kernel(
         return;
     }
 
+    float3 pixel_center = input.viewport_upper_left + (gid.x + 0.5) * input.pixel_delta_u + (gid.y + 0.5) * input.pixel_delta_v;
+    float3 camera_center = pixel_center - input.camera_center;
+    Ray ray = {input.camera_center, camera_center};
+    float3 color = ray_color(ray);
 
-
-    image.write(metal::float4(0.0, 0.0, 0.0, 1.0), gid);
+    image.write(metal::float4(color.x, color.y, color.z, 1.0), gid);
 }
