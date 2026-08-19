@@ -86,6 +86,10 @@ pub fn main(init: std.process.Init) !void {
     };
     defer image.deinit();
 
+    const buffer = metal.Buffer.init(renderer, RayTraceInput) orelse
+        return error.MetalBufferFailed;
+    defer buffer.deinit();
+
     var running = true;
 
     while (running) {
@@ -138,8 +142,7 @@ pub fn main(init: std.process.Init) !void {
             .pixel_delta_v = pixel_delta_v,
             .viewport_upper_left = viewport_upper_left,
         };
-        const buffer = metal.Buffer.init(renderer, &params) orelse
-            return error.MetalBufferFailed;
+        buffer.write(&params);
 
         compute_pass.setPipeline(compute_pipeline);
         compute_pass.setTexture(0, image);

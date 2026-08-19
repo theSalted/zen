@@ -58,13 +58,20 @@ pub const ComputePipeline = opaque {
 pub const Buffer = opaque {
     pub fn init(
         renderer: *Renderer,
+        t: type,
+    ) ?*Buffer {
+        return metal_create_buffer(renderer, null, @sizeOf(t));
+    }
+
+    pub fn initWithBuffer(
+        renderer: *Renderer,
         data: anytype,
     ) ?*Buffer {
         return metal_create_buffer(renderer, data, @sizeOf(@TypeOf(data.*)));
     }
 
-    pub fn write(buffer: *Buffer, data: *const anyopaque, size: usize) void {
-        metal_buffer_write(buffer, data, size);
+    pub fn write(buffer: *Buffer, data: anytype) void {
+        metal_buffer_write(buffer, data, @sizeOf(@TypeOf(data.*)));
     }
 
     pub fn deinit(buffer: *Buffer) void {
