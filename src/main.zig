@@ -28,7 +28,7 @@ pub fn main(init: std.process.Init) !void {
     const width = 1280;
     const height = 720;
 
-    const window = sdl.SDL_CreateWindow("Zen", width, height, sdl.SDL_WINDOW_RESIZABLE | sdl.SDL_WINDOW_METAL);
+    const window = sdl.SDL_CreateWindow("Zen", width, height, sdl.SDL_WINDOW_METAL);
 
     if (window == null) {
         std.log.err("Couldn't crate window: {s}", .{sdl.SDL_GetError()});
@@ -107,10 +107,12 @@ pub fn main(init: std.process.Init) !void {
         }
 
         // logic
-        const aspect_ratio = pixel_width / pixel_height;
+        const aspect_ratio =
+            @as(f32, @floatFromInt(pixel_width)) /
+            @as(f32, @floatFromInt(pixel_height));
         const focal_length: f32 = 1.0;
         const viewport_height: f32 = 2.0;
-        const viewport_width = viewport_height * @as(f32, @floatFromInt(aspect_ratio));
+        const viewport_width = viewport_height * aspect_ratio;
         const camera_center: Vector3 = .{ 0, 0, 0 };
 
         const viewport_u: Vector3 = .{ viewport_width, 0, 0 };
