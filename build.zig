@@ -21,8 +21,8 @@ const sdl_windows_dll = vendor_release_dir ++ "/SDL3.dll";
 const compile_commands_script = "tools/write_compile_commands.cmake";
 
 const shader_dir = "src/shaders";
-const shader_entry = shader_dir ++ "/gradient.metal";
-const shader_air_name = "gradient.air";
+const shader_entry = shader_dir ++ "/zen.metal";
+const shader_air_name = "zen.air";
 const shader_library_name = "default.metallib";
 
 const install_bin_dir = "zig-out/bin";
