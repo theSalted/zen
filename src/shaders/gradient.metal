@@ -7,25 +7,6 @@ struct VertexOut {
     float2 uv;
 };
 
-
-//unused
-kernel void gradient_kernel(
-    texture2d<float, access::write> image [[texture(0)]],
-    uint2 gid [[thread_position_in_grid]]
-) {
-    uint width = image.get_width();
-    uint height = image.get_height();
-
-    if (gid.x >= width || gid.y >= height) {
-        return;
-    }
-
-    float r = float(gid.x) / float(width - 1);
-    float g = float(gid.y) / float(height - 1);
-
-    image.write(metal::float4(r, g, 0.0, 1.0), gid);
-}
-
 vertex VertexOut vertex_main(uint vertex_id [[vertex_id]]) {
     float2 positions[3] = {
         float2(-1.0, -1.0),
@@ -59,6 +40,37 @@ float degree_to_radians(float degrees) {
 }
 
 
+struct Interval {
+    float min;
+    float max;
+
+    Interval()
+        : min(INFINITY), max(-INFINITY) {}
+
+    Interval(float min_, float max_)
+        : min(min_), max(max_) {}
+
+    float size() const {
+        return max - min;
+    }
+
+    bool contains(float x) const {
+        return x >= min && x <= max;
+    }
+
+    bool surrounds(float x) const {
+        return x > min && x < max;
+    }
+
+    static Interval empty() {
+        return Interval(INFINITY, -INFINITY);
+    }
+
+    static Interval universe() {
+        return Interval(-INFINITY, INFINITY);
+    }
+};
+
 // ray
 struct Ray {
     float3 origin;
@@ -87,8 +99,7 @@ struct Sphere {
 
     bool hit(
         Ray ray,
-        float ray_tmin,
-        float ray_tmax,
+        Interval ray_t,
         thread HitRecord& rec
     ) const {
         float3 oc = center - ray.origin;
@@ -105,9 +116,9 @@ struct Sphere {
         float sqrtd = sqrt(discriminant);
 
         float root = (h - sqrtd) / a;
-        if (root <= ray_tmin || ray_tmax <= root) {
+        if (!ray_t.surrounds(root)) {
             root = (h + sqrtd) / a;
-            if (root <= ray_tmin || ray_tmax <= root) {
+            if (!ray_t.surrounds(root)) {
                 return false;
             }
         }
@@ -128,18 +139,17 @@ struct World {
 
     bool hit(
         Ray ray,
-        float ray_tmin,
-        float ray_tmax,
+        Interval ray_t,
         thread HitRecord& rec
     ) {
         HitRecord temp_rec;
         bool hit_anything = false;
-        float closest_so_far = ray_tmax;
+        float closest_so_far = ray_t.max;
 
         for (uint i = 0; i < sphere_count; i += 1) {
             Sphere sphere = spheres[i];
 
-            if (sphere.hit(ray, ray_tmin, closest_so_far, temp_rec)) {
+            if (sphere.hit(ray, Interval(ray_t.min, closest_so_far), temp_rec)) {
                 hit_anything = true;
                 closest_so_far = temp_rec.t;
                 rec = temp_rec;
@@ -152,7 +162,7 @@ struct World {
     float3 trace(Ray ray) {
         HitRecord rec;
 
-        if (hit(ray, 0.001, INFINITY, rec)) {
+        if (hit(ray, Interval(0.001, INFINITY), rec)) {
             return 0.5 * (rec.normal + float3(1.0));
         }
 
