@@ -58,6 +58,34 @@ struct PRNG {
     float rand(float min, float max) {
         return min + (max - min) * rand();
     }
+
+    float3 rand3() {
+        return float3(rand(), rand(), rand());
+    }
+
+    float3 rand3(float min, float max) {
+        return float3(rand(min, max), rand(min, max), rand(min, max));
+    }
+
+    float3 rand_unit_vector() {
+        for (int i = 0; i < 100; i++) {
+            float3 p = rand3(-1, 1);
+            float lensq = length_squared(p);
+
+            if (1e-8 < lensq && lensq <= 1)
+                return p / sqrt(lensq);
+        }
+
+        return float3(1.0, 0.0, 0.0);
+    }
+
+    float3 rand_on_hemisphere(float3 normal) {
+        float3 on_unit_sphere = rand_unit_vector();
+        if (dot(on_unit_sphere, normal) > 0.0)
+            return on_unit_sphere;
+        else
+            return -on_unit_sphere;
+    }
 };
 
 #endif

@@ -8,6 +8,7 @@ using namespace metal;
 #include "ray.metal"
 #include "hit_record.metal"
 #include "sphere.metal"
+#include "prng.metal"
 
 struct World {
     constant Sphere* spheres;
@@ -35,18 +36,29 @@ struct World {
         return hit_anything;
     }
 
-    float3 trace(Ray ray) {
-        HitRecord rec;
-
-        if (hit(ray, Interval(0.001, INFINITY), rec)) {
-            return 0.5 * (rec.normal + float3(1.0));
-        }
-
-        float3 unit_direction = normalize(ray.direction);
-        float a = 0.5 * (unit_direction.y + 1.0);
-
-        return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
+    float3 trace(Ray ray, uint2 gid, uint sample_index) {
+        PRNG prng = PRNG(gid.x, gid.y, sample_index);
+        return trace(ray, prng, 10);
     }
+
+    private:
+        float3 trace(Ray ray, thread PRNG& prng, int depth) {
+            if (depth <= 0) {
+                return float3(0.0);
+            }
+
+            HitRecord rec;
+
+            if (hit(ray, Interval(0.001, INFINITY), rec)) {
+                float3 direction = prng.rand_on_hemisphere(rec.normal);
+                return 0.5 * trace(Ray{rec.point, direction}, prng, depth - 1);
+            }
+
+            float3 unit_direction = normalize(ray.direction);
+            float a = 0.5 * (unit_direction.y + 1.0);
+
+            return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
+        }
 };
 
 #endif

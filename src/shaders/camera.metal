@@ -13,13 +13,13 @@ struct Camera {
     float3 pixel_delta_u;
     float3 pixel_delta_v;
     float3 viewport_upper_left;
-    int samples_per_pixel = 100;
+    int samples_per_pixel = 30;
 
     float3 render(World world, uint2 gid) {
         float3 color = float3(0.0);
         for (int i = 0; i < samples_per_pixel; i++) {
             Ray ray = get_ray(gid, uint(i));
-            color += world.trace(ray);
+            color += world.trace(ray, gid, uint(i));
         }
         color /= float(samples_per_pixel);
         color = clamp(color, float3(0.0), float3(1.0));
@@ -27,7 +27,7 @@ struct Camera {
     }
 
     private:
-        Ray get_ray(uint2 gid, uint sample_index) const {
+        Ray get_ray(uint2 gid, uint sample_index) {
             float3 offset = sample_square(gid, sample_index);
 
             float3 pixel_center =
@@ -41,9 +41,8 @@ struct Camera {
             return {ray_origin, ray_direction};
         }
 
-        float3 sample_square(uint2 seed, uint sample_index) const {
+        float3 sample_square(uint2 seed, uint sample_index) {
             PRNG prng = PRNG(seed.x, seed.y, sample_index);
-
             return float3(prng.rand() - 0.5, prng.rand() - 0.5, 0.0);
         }
 };
