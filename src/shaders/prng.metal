@@ -5,7 +5,7 @@
 using namespace metal;
 
 struct PRNG {
-    float seed;
+    unsigned seed;
 
     unsigned TausStep(const unsigned z, const int s1, const int s2, const int s3, const unsigned M)
     {
@@ -37,7 +37,7 @@ struct PRNG {
         z3 = TausStep(r1,3,11,17,429496280UL);
         z4 = (1664525*r1 + 1013904223UL);
 
-        this->seed = (z1^z2^z3^z4) * 2.3283064365387e-10;
+        this->seed = z1^z2^z3^z4;
     }
 
     float rand() {
@@ -48,11 +48,11 @@ struct PRNG {
         unsigned z3 = TausStep(hashed_seed,3,11,17,429496280UL);
         unsigned z4 = (1664525*hashed_seed + 1013904223UL);
 
-        float old_seed = this->seed;
+        unsigned old_seed = this->seed;
 
-        this->seed = (z1^z2^z3^z4) * 2.3283064365387e-10;
+        this->seed = z1^z2^z3^z4;
 
-        return old_seed;
+        return old_seed * 2.3283064365387e-10;
     }
 
     float rand(float min, float max) {
@@ -68,7 +68,7 @@ struct PRNG {
     }
 
     float3 rand_unit_vector() {
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 16; i++) {
             float3 p = rand3(-1, 1);
             float lensq = length_squared(p);
 

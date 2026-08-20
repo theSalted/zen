@@ -50,7 +50,10 @@ struct World {
             HitRecord rec;
 
             if (hit(ray, Interval(0.001, INFINITY), rec)) {
-                float3 direction = prng.rand_on_hemisphere(rec.normal);
+                float3 direction = rec.normal + prng.rand_unit_vector();
+                if (near_zero(direction)) {
+                    direction = rec.normal;
+                }
                 return 0.5 * trace(Ray{rec.point, direction}, prng, depth - 1);
             }
 
@@ -58,6 +61,11 @@ struct World {
             float a = 0.5 * (unit_direction.y + 1.0);
 
             return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
+        }
+
+        bool near_zero(float3 v) {
+            float s = 1e-8;
+            return abs(v.x) < s && abs(v.y) < s && abs(v.z) < s;
         }
 };
 

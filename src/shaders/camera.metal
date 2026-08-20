@@ -22,6 +22,7 @@ struct Camera {
             color += world.trace(ray, gid, uint(i));
         }
         color /= float(samples_per_pixel);
+        color = linear_to_gamma(color);
         color = clamp(color, float3(0.0), float3(1.0));
         return color;
     }
@@ -44,6 +45,20 @@ struct Camera {
         float3 sample_square(uint2 seed, uint sample_index) {
             PRNG prng = PRNG(seed.x, seed.y, sample_index);
             return float3(prng.rand() - 0.5, prng.rand() - 0.5, 0.0);
+        }
+
+        float ltog(float linear) {
+            if (linear > 0) {
+                return sqrt(linear);
+            }
+            return 0;
+        }
+
+        float3 linear_to_gamma(float3 linear_color) {
+            linear_color.x = ltog(linear_color.x);
+            linear_color.y = ltog(linear_color.y);
+            linear_color.z = ltog(linear_color.z);
+            return linear_color;
         }
 };
 
