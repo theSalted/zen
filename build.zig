@@ -23,6 +23,7 @@ const compile_commands_script = "tools/write_compile_commands.cmake";
 const shader_dir = "src/shaders";
 const shader_entry = shader_dir ++ "/zen.metal";
 const shader_air_name = "zen.air";
+const shader_dep_name = "zen.d";
 const shader_library_name = "default.metallib";
 
 const install_bin_dir = "zig-out/bin";
@@ -127,6 +128,10 @@ pub fn build(b: *std.Build) void {
     });
     metal_compile.addArg("-I");
     metal_compile.addDirectoryArg(b.path(shader_dir));
+    metal_compile.addArg("-MMD");
+    metal_compile.addArg("-MP");
+    metal_compile.addArg("-dependency-file");
+    _ = metal_compile.addDepFileOutputArg(shader_dep_name);
     metal_compile.addArg("-c");
     metal_compile.addFileArg(b.path(shader_entry));
     metal_compile.addArg("-o");

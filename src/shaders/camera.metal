@@ -5,21 +5,47 @@
 using namespace metal;
 
 #include "ray.metal"
+#include "world.metal"
+#include "prng.metal"
 
 struct Camera {
     float3 camera_center;
     float3 pixel_delta_u;
     float3 pixel_delta_v;
     float3 viewport_upper_left;
+    int samples_per_pixel = 100;
 
-    Ray get_ray(uint2 gid) const {
-        float3 pixel_center =
-            viewport_upper_left
-            + (float(gid.x) + 0.5) * pixel_delta_u
-            + (float(gid.y) + 0.5) * pixel_delta_v;
-
-        return {camera_center, pixel_center - camera_center};
+    float3 render(World world, uint2 gid) {
+        float3 color = float3(0.0);
+        for (int i = 0; i < samples_per_pixel; i++) {
+            Ray ray = get_ray(gid, uint(i));
+            color += world.trace(ray);
+        }
+        color /= float(samples_per_pixel);
+        color = clamp(color, float3(0.0), float3(1.0));
+        return color;
     }
+
+    private:
+        Ray get_ray(uint2 gid, uint sample_index) const {
+            float3 offset = sample_square(gid, sample_index);
+
+            float3 pixel_center =
+                viewport_upper_left
+                + (float(gid.x) + 0.5 + offset.x) * pixel_delta_u
+                + (float(gid.y) + 0.5 + offset.y) * pixel_delta_v;
+
+            float3 ray_origin = camera_center;
+            float3 ray_direction = pixel_center - camera_center;
+
+            return {ray_origin, ray_direction};
+        }
+
+        float3 sample_square(uint2 seed, uint sample_index) const {
+            PRNG prng = PRNG(seed.x, seed.y, sample_index);
+
+            return float3(prng.rand() - 0.5, prng.rand() - 0.5, 0.0);
+        }
 };
 
 #endif

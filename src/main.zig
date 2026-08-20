@@ -110,15 +110,19 @@ pub fn main(init: std.process.Init) !void {
 
         _ = sdl.SDL_GetWindowSizeInPixels(window, &w, &h);
 
-        const new_width: u32 = @intCast(w);
-        const new_height: u32 = @intCast(h);
-
         while (sdl.SDL_PollEvent(&event)) {
             switch (event.type) {
                 sdl.SDL_EVENT_QUIT => running = false,
                 else => {},
             }
         }
+
+        if (w <= 0 or h <= 0) {
+            continue;
+        }
+
+        const new_width: u32 = @intCast(w);
+        const new_height: u32 = @intCast(h);
 
         // render logic
 

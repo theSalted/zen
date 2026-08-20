@@ -26,6 +26,10 @@ struct Interval {
         return x > min && x < max;
     }
 
+    float clamp(float x) const {
+        return x < min ? min : (x > max ? max : x);
+    }
+
     static Interval empty() {
         return Interval(INFINITY, -INFINITY);
     }

@@ -38,7 +38,7 @@ fragment float4 fragment_main(
     VertexOut in [[stage_in]],
     texture2d<float> image [[texture(0)]]
 ) {
-    constexpr sampler s(address::clamp_to_edge, filter::nearest);
+    constexpr sampler s(address::clamp_to_edge, filter::linear);
     return image.sample(s, in.uv);
 }
 
@@ -73,10 +73,9 @@ kernel void ray_trace_kernel(
         input.pixel_delta_v,
         input.viewport_upper_left,
     };
-    Ray ray = camera.get_ray(gid);
 
     World world = {spheres, input.sphere_count};
-    float3 color = world.trace(ray);
 
+    float3 color = camera.render(world, gid);
     image.write(float4(color, 1.0), gid);
 }
