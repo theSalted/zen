@@ -14,11 +14,20 @@ pub const RayTraceInput = extern struct {
     viewport_upper_left: Vector3,
 
     sphere_count: u32,
+    material_count: u32,
 };
 
 pub const Sphere = extern struct {
     center: Vector3,
     radius: f32,
+    material_index: u32,
+};
+
+pub const Material = extern struct {
+    type: u32,
+    albedo: f32,
+    fuzz: f32,
+    refraction_index: f32,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -92,9 +101,16 @@ pub fn main(init: std.process.Init) !void {
         return error.MetalBufferFailed;
     defer param_buffer.deinit();
 
+    const materials = [_]Material{
+        .{ .type = 0, .albedo = 1.0, .fuzz = 1.0, .refraction_index = 0.0 },
+    };
+    const material_buffer = metal.Buffer.initWithBuffer(renderer, &materials) orelse
+        return error.MetalBufferFailed;
+    defer material_buffer.deinit();
+
     const spheres = [_]Sphere{
-        .{ .center = .{ 0, 0, -1 }, .radius = 0.5 },
-        .{ .center = .{ 0, -100.5, -1 }, .radius = 100 },
+        .{ .center = .{ 0, 0, -1 }, .radius = 0.5, .material_index = 0 },
+        .{ .center = .{ 0, -100.5, -1 }, .radius = 100, .material_index = 0 },
     };
     const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
         return error.MetalBufferFailed;
@@ -179,6 +195,7 @@ pub fn main(init: std.process.Init) !void {
             .pixel_delta_v = pixel_delta_v,
             .viewport_upper_left = viewport_upper_left,
             .sphere_count = spheres.len,
+            .material_count = materials.len,
         };
         param_buffer.write(&params);
 
@@ -186,6 +203,7 @@ pub fn main(init: std.process.Init) !void {
         compute_pass.setTexture(0, image);
         compute_pass.setBuffer(0, param_buffer);
         compute_pass.setBuffer(1, sphere_buffer);
+        compute_pass.setBuffer(2, material_buffer);
         compute_pass.dispatch(image_width, image_height, 1);
         compute_pass.end();
 

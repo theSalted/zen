@@ -11,6 +11,7 @@ struct HitRecord {
     float3 normal;
     float t;
     bool front_face;
+    uint material_index;
 
     void set_face_normal(Ray ray, float3 outward_normal) {
         front_face = dot(ray.direction, outward_normal) < 0;

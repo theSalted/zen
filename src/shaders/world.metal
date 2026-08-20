@@ -9,10 +9,13 @@ using namespace metal;
 #include "hit_record.metal"
 #include "sphere.metal"
 #include "prng.metal"
+#include "material.metal"
 
 struct World {
     constant Sphere* spheres;
     uint sphere_count;
+    constant Material* materials;
+    uint material_count;
 
     bool hit(
         Ray ray,

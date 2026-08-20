@@ -11,6 +11,7 @@ using namespace metal;
 struct Sphere {
     float3 center;
     float radius;
+    uint material_index;
 
     bool hit(
         Ray ray,

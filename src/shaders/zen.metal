@@ -9,6 +9,7 @@ using namespace metal;
 #include "sphere.metal"
 #include "world.metal"
 #include "camera.metal"
+#include "material.metal"
 
 struct VertexOut {
     float4 position [[position]];
@@ -52,12 +53,14 @@ struct RayTraceInput {
     float3 viewport_upper_left;
 
     uint sphere_count;
+    uint material_count;
 };
 
 kernel void ray_trace_kernel(
     texture2d<float, access::write> image [[texture(0)]],
     constant RayTraceInput& input [[buffer(0)]],
     constant Sphere* spheres [[buffer(1)]],
+    constant Material* materials [[buffer(2)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     uint width = image.get_width();
@@ -74,7 +77,7 @@ kernel void ray_trace_kernel(
         input.viewport_upper_left,
     };
 
-    World world = {spheres, input.sphere_count};
+    World world = {spheres, input.sphere_count, materials, input.material_count};
 
     float3 color = camera.render(world, gid);
     image.write(float4(color, 1.0), gid);
