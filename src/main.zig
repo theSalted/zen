@@ -32,6 +32,7 @@ pub const Material = extern struct {
 
 pub const MaterialType = enum(u32) {
     Lambertian = 0,
+    Metal = 1,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -107,18 +108,24 @@ pub fn main(init: std.process.Init) !void {
 
     const material_ground: Material = .{ .type = .Lambertian, .albedo = .{ 0.8, 0.8, 0.0 } };
     const material_center: Material = .{ .type = .Lambertian, .albedo = .{ 0.1, 0.2, 0.5 } };
+    const material_left: Material = .{ .type = .Metal, .albedo = .{ 0.8, 0.8, 0.8 } };
+    const material_right: Material = .{ .type = .Metal, .albedo = .{ 0.8, 0.6, 0.2 } };
 
     const materials = [_]Material{
         material_ground,
         material_center,
+        material_left,
+        material_right,
     };
     const material_buffer = metal.Buffer.initWithBuffer(renderer, &materials) orelse
         return error.MetalBufferFailed;
     defer material_buffer.deinit();
 
     const spheres = [_]Sphere{
-        .{ .center = .{ 0, 0, -1 }, .radius = 0.5, .material_index = 1 },
         .{ .center = .{ 0, -100.5, -1 }, .radius = 100, .material_index = 0 },
+        .{ .center = .{ 0.0, 0.0, -1.2 }, .radius = 0.5, .material_index = 1 },
+        .{ .center = .{ 1.0, 0.0, -1.0 }, .radius = 0.5, .material_index = 2 },
+        .{ .center = .{ -1.0, 0.0, -1.0 }, .radius = 0.5, .material_index = 3 },
     };
     const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
         return error.MetalBufferFailed;

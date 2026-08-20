@@ -46,29 +46,48 @@ struct World {
 
     private:
         float3 trace(Ray ray, thread PRNG& prng, int depth) {
-            if (depth <= 0) {
-                return float3(0.0);
-            }
+            float3 attenuation = float3(1.0);
 
-            HitRecord rec;
-
-            if (hit(ray, Interval(0.001, INFINITY), rec)) {
-                Material mat = materials[rec.material_index];
-                if (mat.type == Lambertian) {
-                    float3 direction = rec.normal + prng.rand_unit_vector();
-                    if (near_zero(direction)) {
-                        direction = rec.normal;
-                    }
-                    Ray scattered = Ray{rec.point, direction};
-                    float3 attenuation = mat.albedo;
-                    return attenuation * trace(scattered, prng, depth - 1);
+            for (int i = 0; i < depth; i++) {
+                HitRecord rec;
+                if (!hit(ray, Interval(0.001, INFINITY), rec)) {
+                    return attenuation * sky(ray.direction);
                 }
 
-                return float3(1.0, 0.0, 1.0);
+                Material mat = materials[rec.material_index];
+                switch (mat.type) {
+                    case Lambertian: {
+                        float3 direction = rec.normal + prng.rand_unit_vector();
+                        if (near_zero(direction)) {
+                            direction = rec.normal;
+                        }
+                        ray = Ray{rec.point, direction};
+                        attenuation *= mat.albedo;
+                        break;
+                    }
+
+                    case Metal: {
+                          float3 reflected = reflect(normalize(ray.direction), rec.normal);
+                          Ray scattered = Ray{rec.point, reflected};
+
+                          if (dot(scattered.direction, rec.normal) <= 0.0) {
+                              return float3(0.0);
+                          }
+
+                          ray = scattered;
+                          attenuation *= mat.albedo;
+                          break;
+                      }
+
+                    default: return float3(1.0, 0.0, 1.0);
+                }
             }
 
-            // sky
-            float3 unit_direction = normalize(ray.direction);
+            return float3(0.0);
+        }
+
+        float3 sky(float3 direction) {
+            float3 unit_direction = normalize(direction);
             float a = 0.5 * (unit_direction.y + 1.0);
 
             return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
