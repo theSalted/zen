@@ -55,33 +55,15 @@ struct World {
                 }
 
                 Material mat = materials[rec.material_index];
-                switch (mat.type) {
-                    case Lambertian: {
-                        float3 direction = rec.normal + prng.rand_unit_vector();
-                        if (near_zero(direction)) {
-                            direction = rec.normal;
-                        }
-                        ray = Ray{rec.point, direction};
-                        attenuation *= mat.albedo;
-                        break;
-                    }
+                Ray scattered;
+                float3 bounce_attenuation;
 
-                    case Metal: {
-                          float3 reflected = reflect(normalize(ray.direction), rec.normal);
-                          reflected = normalize(reflected) + (mat.fuzz * prng.rand_unit_vector());
-                          Ray scattered = Ray{rec.point, reflected};
-
-                          if (dot(scattered.direction, rec.normal) <= 0.0) {
-                              return float3(0.0);
-                          }
-
-                          ray = scattered;
-                          attenuation *= mat.albedo;
-                          break;
-                      }
-
-                    default: return float3(1.0, 0.0, 1.0);
+                if (!Material::scatter(mat, ray, rec, prng, scattered, bounce_attenuation)) {
+                    return float3(0.0);
                 }
+
+                ray = scattered;
+                attenuation *= bounce_attenuation;
             }
 
             return float3(0.0);
@@ -94,10 +76,6 @@ struct World {
             return (1.0 - a) * float3(1.0, 1.0, 1.0) + a * float3(0.5, 0.7, 1.0);
         }
 
-        bool near_zero(float3 v) {
-            float s = 1e-8;
-            return abs(v.x) < s && abs(v.y) < s && abs(v.z) < s;
-        }
 };
 
 #endif

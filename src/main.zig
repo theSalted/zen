@@ -93,7 +93,7 @@ pub fn main(init: std.process.Init) !void {
 
     const material_ground: Material = .{ .type = .Lambertian, .albedo = .{ 0.8, 0.8, 0.0 } };
     const material_center: Material = .{ .type = .Lambertian, .albedo = .{ 0.1, 0.2, 0.5 } };
-    const material_left: Material = .{ .type = .Metal, .albedo = .{ 0.8, 0.8, 0.8 }, .fuzz = 0.3 };
+    const material_left: Material = .{ .type = .Dialectric, .refraction_index = 1.50 };
     const material_right: Material = .{ .type = .Metal, .albedo = .{ 0.8, 0.6, 0.2 }, .fuzz = 1.0 };
 
     const materials = [_]Material{
