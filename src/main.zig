@@ -1,4 +1,5 @@
 const std = @import("std");
+const math = std.math;
 const sdl = @import("sdl");
 const metal = @import("metal.zig");
 const common = @import("common.zig");
@@ -33,6 +34,7 @@ pub fn main(init: std.process.Init) !void {
 
     const width = 1280;
     const height = 720;
+    const vfov: f32 = 90;
 
     const window = sdl.SDL_CreateWindow("Zen", width, height, sdl.SDL_WINDOW_METAL | sdl.SDL_WINDOW_RESIZABLE);
 
@@ -171,7 +173,9 @@ pub fn main(init: std.process.Init) !void {
             @as(f32, @floatFromInt(image_width)) /
             @as(f32, @floatFromInt(image_height));
         const focal_length: f32 = 1.0;
-        const viewport_height: f32 = 2.0;
+        const theta = common.degrees_to_radians(vfov);
+        const ih = math.tan(theta / 2);
+        const viewport_height: f32 = 2.0 * ih * focal_length;
         const viewport_width = viewport_height * aspect_ratio;
         const camera_center: Vector3 = .{ 0, 0, 0 };
 
