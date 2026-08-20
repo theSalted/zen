@@ -24,10 +24,14 @@ pub const Sphere = extern struct {
 };
 
 pub const Material = extern struct {
-    type: u32,
-    albedo: f32,
-    fuzz: f32,
-    refraction_index: f32,
+    type: MaterialType,
+    albedo: Vector3 = .{ 1.0, 1.0, 1.0 },
+    fuzz: f32 = 0.0,
+    refraction_index: f32 = 0.0,
+};
+
+pub const MaterialType = enum(u32) {
+    Lambertian = 0,
 };
 
 pub fn main(init: std.process.Init) !void {
@@ -101,15 +105,19 @@ pub fn main(init: std.process.Init) !void {
         return error.MetalBufferFailed;
     defer param_buffer.deinit();
 
+    const material_ground: Material = .{ .type = .Lambertian, .albedo = .{ 0.8, 0.8, 0.0 } };
+    const material_center: Material = .{ .type = .Lambertian, .albedo = .{ 0.1, 0.2, 0.5 } };
+
     const materials = [_]Material{
-        .{ .type = 0, .albedo = 1.0, .fuzz = 1.0, .refraction_index = 0.0 },
+        material_ground,
+        material_center,
     };
     const material_buffer = metal.Buffer.initWithBuffer(renderer, &materials) orelse
         return error.MetalBufferFailed;
     defer material_buffer.deinit();
 
     const spheres = [_]Sphere{
-        .{ .center = .{ 0, 0, -1 }, .radius = 0.5, .material_index = 0 },
+        .{ .center = .{ 0, 0, -1 }, .radius = 0.5, .material_index = 1 },
         .{ .center = .{ 0, -100.5, -1 }, .radius = 100, .material_index = 0 },
     };
     const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse

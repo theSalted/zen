@@ -10,7 +10,7 @@ enum MaterialType: uint {
 
 struct Material {
     uint type;
-    float albedo;
+    float3 albedo;
     float fuzz;
     float refraction_index;
 };

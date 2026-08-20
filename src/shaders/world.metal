@@ -53,13 +53,21 @@ struct World {
             HitRecord rec;
 
             if (hit(ray, Interval(0.001, INFINITY), rec)) {
-                float3 direction = rec.normal + prng.rand_unit_vector();
-                if (near_zero(direction)) {
-                    direction = rec.normal;
+                Material mat = materials[rec.material_index];
+                if (mat.type == Lambertian) {
+                    float3 direction = rec.normal + prng.rand_unit_vector();
+                    if (near_zero(direction)) {
+                        direction = rec.normal;
+                    }
+                    Ray scattered = Ray{rec.point, direction};
+                    float3 attenuation = mat.albedo;
+                    return attenuation * trace(scattered, prng, depth - 1);
                 }
-                return 0.5 * trace(Ray{rec.point, direction}, prng, depth - 1);
+
+                return float3(1.0, 0.0, 1.0);
             }
 
+            // sky
             float3 unit_direction = normalize(ray.direction);
             float a = 0.5 * (unit_direction.y + 1.0);
 

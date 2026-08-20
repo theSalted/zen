@@ -41,6 +41,7 @@ struct Sphere {
 
         rec.t = root;
         rec.point = ray.at(rec.t);
+        rec.material_index = material_index;
 
         float3 outward_normal = (rec.point - center) / radius;
         rec.set_face_normal(ray, outward_normal);
