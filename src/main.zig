@@ -102,6 +102,7 @@ pub fn main(init: std.process.Init) !void {
 
     const spheres = [_]Sphere{
         .{ .center = .{ 0, 0, -1 }, .radius = 0.5 },
+        .{ .center = .{ 0, -100.5, -1 }, .radius = 100 },
     };
     const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
         return error.MetalBufferFailed;
