@@ -68,6 +68,7 @@ struct World {
 
                     case Metal: {
                           float3 reflected = reflect(normalize(ray.direction), rec.normal);
+                          reflected = normalize(reflected) + (mat.fuzz * prng.rand_unit_vector());
                           Ray scattered = Ray{rec.point, reflected};
 
                           if (dot(scattered.direction, rec.normal) <= 0.0) {
