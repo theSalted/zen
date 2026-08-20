@@ -54,19 +54,11 @@ pub fn main(init: std.process.Init) !void {
         return error.SdlCreateMetalLayerFailed;
     }
 
-    const shader = @embedFile("shaders/gradient.metal");
-    const shader_sources = [_]metal.ShaderSource{
-        .{
-            .source = shader.ptr,
-            .source_len = shader.len,
-        },
-    };
-
     const renderer = metal.Renderer.init(layer.?, width, height) orelse
         return error.MetalCreateFailed;
     defer renderer.deinit();
 
-    const library = metal.ShaderLibrary.init(renderer, &shader_sources) orelse
+    const library = metal.ShaderLibrary.init(renderer, "default.metallib") orelse
         return error.MetalShaderLibraryFailed;
     defer library.deinit();
 

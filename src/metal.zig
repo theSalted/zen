@@ -14,9 +14,9 @@ pub const Renderer = opaque {
 pub const ShaderLibrary = opaque {
     pub fn init(
         renderer: *Renderer,
-        sources: []const ShaderSource,
+        path: [*:0]const u8,
     ) ?*ShaderLibrary {
-        return metal_create_shader_library(renderer, sources.ptr, sources.len);
+        return metal_create_shader_library(renderer, path);
     }
 
     pub fn deinit(library: *ShaderLibrary) void {
@@ -159,10 +159,6 @@ pub const ComputePass = opaque {
     }
 };
 
-pub const ShaderSource = extern struct {
-    source: [*]const u8,
-    source_len: usize,
-};
 pub const TextureFormat = enum(c_int) {
     bgra8_unorm,
     rgba8_unorm,
@@ -193,8 +189,7 @@ extern fn metal_destroy(renderer: *Renderer) void;
 
 extern fn metal_create_shader_library(
     renderer: *Renderer,
-    sources: [*]const ShaderSource,
-    source_count: usize,
+    path: [*:0]const u8,
 ) ?*ShaderLibrary;
 extern fn metal_destroy_shader_library(library: *ShaderLibrary) void;
 

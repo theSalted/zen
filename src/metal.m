@@ -2,6 +2,8 @@
 #include <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
+#include <limits.h>
+#include <mach-o/dyld.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -111,28 +113,35 @@ void metal_destroy(MetalRenderer *renderer) {
   free(renderer);
 }
 
-MetalShaderLibrary *
-metal_create_shader_library(MetalRenderer *renderer,
-                            const MetalShaderSource *sources,
-                            size_t source_count) {
-  NSMutableString *combined = [NSMutableString string];
-
-  for (size_t i = 0; i < source_count; i += 1) {
-    NSString *part = [[NSString alloc] initWithBytes:sources[i].source
-                                              length:sources[i].source_len
-                                            encoding:NSUTF8StringEncoding];
-    if (!part)
-      return 0;
-    [combined appendString:part];
-    [combined appendString:@"\n"];
-  }
+MetalShaderLibrary *metal_create_shader_library(MetalRenderer *renderer,
+                                                const char *path) {
+  NSString *library_path = [NSString stringWithUTF8String:path];
+  NSURL *url = [NSURL fileURLWithPath:library_path];
 
   NSError *error = nil;
-  id<MTLLibrary> library = [renderer->device newLibraryWithSource:combined
-                                                          options:nil
-                                                            error:&error];
+  id<MTLLibrary> library = [renderer->device newLibraryWithURL:url
+                                                         error:&error];
+
+  if (!library && ![library_path isAbsolutePath]) {
+    char executable_path[PATH_MAX];
+    uint32_t size = sizeof(executable_path);
+
+    if (_NSGetExecutablePath(executable_path, &size) == 0) {
+      NSString *executable =
+          [NSString stringWithUTF8String:executable_path];
+      NSString *directory = [executable stringByDeletingLastPathComponent];
+      NSString *fallback_path =
+          [directory stringByAppendingPathComponent:library_path];
+      NSURL *fallback_url = [NSURL fileURLWithPath:fallback_path];
+
+      error = nil;
+      library = [renderer->device newLibraryWithURL:fallback_url
+                                              error:&error];
+    }
+  }
+
   if (!library) {
-    NSLog(@"Metal shader compile failed: %@", error);
+    NSLog(@"Metal shader library load failed: %@", error);
     return 0;
   }
 

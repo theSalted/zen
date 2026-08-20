@@ -1,5 +1,32 @@
 const std = @import("std");
 
+const app_name = "zen";
+
+const root_source = "src/main.zig";
+const module_source = "src/root.zig";
+const metal_source = "src/metal.m";
+const sdl_header = "src/sdl.h";
+
+const vendor_source_dir = "vendor";
+const vendor_build_dir = "build/vendor";
+const vendor_build_type = "Release";
+const vendor_release_dir = vendor_build_dir ++ "/" ++ vendor_build_type;
+
+const sdl_include_dir = "vendor/SDL/include";
+const sdl_library_name = "SDL3";
+const sdl_macos_dylib = vendor_release_dir ++ "/libSDL3.0.dylib";
+const sdl_linux_so = vendor_release_dir ++ "/libSDL3.so.0";
+const sdl_windows_dll = vendor_release_dir ++ "/SDL3.dll";
+
+const compile_commands_script = "tools/write_compile_commands.cmake";
+
+const shader_dir = "src/shaders";
+const shader_entry = shader_dir ++ "/gradient.metal";
+const shader_air_name = "gradient.air";
+const shader_library_name = "default.metallib";
+
+const install_bin_dir = "zig-out/bin";
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -8,25 +35,25 @@ pub fn build(b: *std.Build) void {
     const vendor_config = b.addSystemCommand(&.{
         "cmake",
         "-S",
-        "vendor",
+        vendor_source_dir,
         "-B",
-        "build/vendor",
-        "-DCMAKE_BUILD_TYPE=Release",
+        vendor_build_dir,
+        "-DCMAKE_BUILD_TYPE=" ++ vendor_build_type,
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     });
 
     const vendor_build = b.addSystemCommand(&.{
         "cmake",
         "--build",
-        "build/vendor",
+        vendor_build_dir,
         "--config",
-        "Release",
+        vendor_build_type,
     });
 
     const compile_commands = b.addSystemCommand(&.{
         "cmake",
         "-P",
-        "tools/write_compile_commands.cmake",
+        compile_commands_script,
     });
 
     compile_commands.step.dependOn(&vendor_config.step);
@@ -43,31 +70,31 @@ pub fn build(b: *std.Build) void {
     vendor_step.dependOn(&compile_commands.step);
 
     const sdl_translate = b.addTranslateC(.{
-        .root_source_file = b.path("src/sdl.h"),
+        .root_source_file = b.path(sdl_header),
         .target = target,
         .optimize = optimize,
     });
-    sdl_translate.addIncludePath(b.path("vendor/SDL/include"));
+    sdl_translate.addIncludePath(b.path(sdl_include_dir));
 
     const sdl_mod = sdl_translate.createModule();
 
     // Public Zen module.
-    const mod = b.addModule("zen", .{
-        .root_source_file = b.path("src/root.zig"),
+    const mod = b.addModule(app_name, .{
+        .root_source_file = b.path(module_source),
         .target = target,
     });
 
     mod.link_libc = true;
-    mod.addIncludePath(b.path("vendor/SDL/include"));
-    mod.addLibraryPath(b.path("build/vendor/Release"));
-    mod.linkSystemLibrary("SDL3", .{});
+    mod.addIncludePath(b.path(sdl_include_dir));
+    mod.addLibraryPath(b.path(vendor_release_dir));
+    mod.linkSystemLibrary(sdl_library_name, .{});
     mod.addImport("sdl", sdl_mod);
 
     // Application executable.
     const exe = b.addExecutable(.{
-        .name = "zen",
+        .name = app_name,
         .root_module = b.createModule(.{
-            .root_source_file = b.path("src/main.zig"),
+            .root_source_file = b.path(root_source),
             .target = target,
             .optimize = optimize,
             .imports = &.{
@@ -78,12 +105,12 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.root_module.link_libc = true;
-    exe.root_module.addIncludePath(b.path("vendor/SDL/include"));
-    exe.root_module.addLibraryPath(b.path("build/vendor/Release"));
-    exe.root_module.linkSystemLibrary("SDL3", .{});
+    exe.root_module.addIncludePath(b.path(sdl_include_dir));
+    exe.root_module.addLibraryPath(b.path(vendor_release_dir));
+    exe.root_module.linkSystemLibrary(sdl_library_name, .{});
 
     exe.root_module.addCSourceFile(.{
-        .file = b.path("src/metal.m"),
+        .file = b.path(metal_source),
         .flags = &.{"-fobjc-arc"},
     });
 
@@ -91,6 +118,39 @@ pub fn build(b: *std.Build) void {
     exe.root_module.linkFramework("QuartzCore", .{});
     exe.root_module.linkFramework("Metal", .{});
     exe.root_module.linkFramework("CoreGraphics", .{});
+
+    const metal_compile = b.addSystemCommand(&.{
+        "xcrun",
+        "-sdk",
+        "macosx",
+        "metal",
+    });
+    metal_compile.addArg("-I");
+    metal_compile.addDirectoryArg(b.path(shader_dir));
+    metal_compile.addArg("-c");
+    metal_compile.addFileArg(b.path(shader_entry));
+    metal_compile.addArg("-o");
+    const shader_air = metal_compile.addOutputFileArg(shader_air_name);
+
+    const metal_library = b.addSystemCommand(&.{
+        "xcrun",
+        "-sdk",
+        "macosx",
+        "metallib",
+    });
+    metal_library.addFileArg(shader_air);
+    metal_library.addArg("-o");
+    const shader_library = metal_library.addOutputFileArg(shader_library_name);
+
+    const install_shader_library = b.addInstallFileWithDir(
+        shader_library,
+        .bin,
+        shader_library_name,
+    );
+    b.getInstallStep().dependOn(&install_shader_library.step);
+
+    const shaders_step = b.step("shaders", "Build Metal shader library");
+    shaders_step.dependOn(&metal_library.step);
 
     // Configure runtime lookup and install the appropriate shared library.
     switch (target.result.os.tag) {
@@ -100,7 +160,7 @@ pub fn build(b: *std.Build) void {
             });
 
             const install_sdl = b.addInstallFileWithDir(
-                b.path("build/vendor/Release/libSDL3.0.dylib"),
+                b.path(sdl_macos_dylib),
                 .bin,
                 "libSDL3.0.dylib",
             );
@@ -114,7 +174,7 @@ pub fn build(b: *std.Build) void {
             });
 
             const install_sdl = b.addInstallFileWithDir(
-                b.path("build/vendor/Release/libSDL3.so.0"),
+                b.path(sdl_linux_so),
                 .bin,
                 "libSDL3.so.0",
             );
@@ -124,7 +184,7 @@ pub fn build(b: *std.Build) void {
 
         .windows => {
             const install_sdl = b.addInstallFileWithDir(
-                b.path("build/vendor/Release/SDL3.dll"),
+                b.path(sdl_windows_dll),
                 .bin,
                 "SDL3.dll",
             );
@@ -148,21 +208,22 @@ pub fn build(b: *std.Build) void {
     // to the runtime loader.
     switch (target.result.os.tag) {
         .macos => {
+            run_cmd.setCwd(b.path(install_bin_dir));
             run_cmd.setEnvironmentVariable(
                 "DYLD_LIBRARY_PATH",
-                "build/vendor/Release",
+                ".",
             );
         },
         .linux => {
             run_cmd.setEnvironmentVariable(
                 "LD_LIBRARY_PATH",
-                "build/vendor/Release",
+                vendor_release_dir,
             );
         },
         .windows => {
             run_cmd.setEnvironmentVariable(
                 "PATH",
-                "build/vendor/Release",
+                vendor_release_dir,
             );
         },
         else => {},
