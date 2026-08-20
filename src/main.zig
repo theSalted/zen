@@ -1,8 +1,11 @@
 const std = @import("std");
 const sdl = @import("sdl");
 const metal = @import("metal.zig");
+const common = @import("common.zig");
 
-const Vector3 = @Vector(3, f32);
+const Vector3 = common.Vector3;
+const Material = common.Material;
+const Sphere = common.Sphere;
 
 pub const RayTraceInput = extern struct {
     image_width: u32,
@@ -15,24 +18,6 @@ pub const RayTraceInput = extern struct {
 
     sphere_count: u32,
     material_count: u32,
-};
-
-pub const Sphere = extern struct {
-    center: Vector3,
-    radius: f32,
-    material_index: u32,
-};
-
-pub const Material = extern struct {
-    type: MaterialType,
-    albedo: Vector3 = .{ 1.0, 1.0, 1.0 },
-    fuzz: f32 = 0.0,
-    refraction_index: f32 = 0.0,
-};
-
-pub const MaterialType = enum(u32) {
-    Lambertian = 0,
-    Metal = 1,
 };
 
 pub fn main(init: std.process.Init) !void {
