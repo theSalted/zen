@@ -95,12 +95,14 @@ pub fn main(init: std.process.Init) !void {
     const material_center: Material = .{ .type = .Lambertian, .albedo = .{ 0.1, 0.2, 0.5 } };
     const material_left: Material = .{ .type = .Dialectric, .refraction_index = 1.50 };
     const material_right: Material = .{ .type = .Metal, .albedo = .{ 0.8, 0.6, 0.2 }, .fuzz = 1.0 };
+    const material_bubble: Material = .{ .type = .Dialectric, .refraction_index = 1.00 / 1.50 };
 
     const materials = [_]Material{
         material_ground,
         material_center,
         material_left,
         material_right,
+        material_bubble,
     };
     const material_buffer = metal.Buffer.initWithBuffer(renderer, &materials) orelse
         return error.MetalBufferFailed;
@@ -110,6 +112,7 @@ pub fn main(init: std.process.Init) !void {
         .{ .center = .{ 0, -100.5, -1 }, .radius = 100, .material_index = 0 },
         .{ .center = .{ 0.0, 0.0, -1.2 }, .radius = 0.5, .material_index = 1 },
         .{ .center = .{ -1.0, 0.0, -1.0 }, .radius = 0.5, .material_index = 2 },
+        .{ .center = .{ -1.0, 0.0, -1.0 }, .radius = 0.4, .material_index = 4 },
         .{ .center = .{ 1.0, 0.0, -1.0 }, .radius = 0.5, .material_index = 3 },
     };
     const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
