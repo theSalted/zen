@@ -217,10 +217,10 @@ pub fn build(b: *std.Build) void {
                 "DYLD_LIBRARY_PATH",
                 ".",
             );
-            run_cmd.setEnvironmentVariable(
-                "MTL_HUD_ENABLED",
-                "1",
-            );
+            //run_cmd.setEnvironmentVariable(
+            //    "MTL_HUD_ENABLED",
+            //    "1",
+            //);
         },
         .linux => {
             run_cmd.setEnvironmentVariable(
