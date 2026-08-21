@@ -26,7 +26,13 @@ pub fn main(init: std.process.Init) !void {
 
     const width = 1280;
     const height = 720;
-    const vfov: f32 = 90;
+    const vfov: f32 = 20;
+    const lookfrom = Vector3{ -2.0, 2.0, 1.0 };
+    const lookat = Vector3{ 0.0, 0.0, -1.0 };
+    const vup = Vector3{ 0.0, 1.0, 0.0 };
+
+    var image_width: u32 = width;
+    var image_height: u32 = height;
 
     var runtime = try zen.Runtime.init(width, height);
     defer runtime.deinit();
@@ -61,9 +67,6 @@ pub fn main(init: std.process.Init) !void {
         return error.MetalTextureFailed;
     };
     defer image.deinit();
-
-    var image_width: u32 = width;
-    var image_height: u32 = height;
 
     const param_buffer = metal.Buffer.init(renderer, RayTraceInput) orelse
         return error.MetalBufferFailed;
@@ -138,20 +141,28 @@ pub fn main(init: std.process.Init) !void {
         const aspect_ratio =
             @as(f32, @floatFromInt(image_width)) /
             @as(f32, @floatFromInt(image_height));
-        const focal_length: f32 = 1.0;
+        const camera_center = lookfrom;
+        const camera_offset = lookfrom - lookat;
+        const focal_length = @sqrt(@reduce(.Add, camera_offset * camera_offset));
         const theta = common.degrees_to_radians(vfov);
         const ih = math.tan(theta / 2);
         const viewport_height: f32 = 2.0 * ih * focal_length;
         const viewport_width = viewport_height * aspect_ratio;
-        const camera_center: Vector3 = .{ 0, 0, 0 };
+        const w = common.normalize(lookfrom - lookat);
+        const u = common.normalize(common.cross(vup, w));
+        const v = common.cross(w, u);
 
-        const viewport_u: Vector3 = .{ viewport_width, 0, 0 };
-        const viewport_v: Vector3 = .{ 0, -viewport_height, 0 };
+        const viewport_u = @as(Vector3, @splat(viewport_width)) * u;
+        const viewport_v = @as(Vector3, @splat(-viewport_height)) * v;
 
         const pixel_delta_u = viewport_u / @as(Vector3, @splat(@as(f32, @floatFromInt(image_width))));
         const pixel_delta_v = viewport_v / @as(Vector3, @splat(@as(f32, @floatFromInt(image_height))));
 
-        const viewport_upper_left = camera_center - Vector3{ 0, 0, focal_length } - viewport_u / @as(Vector3, @splat(2.0)) - viewport_v / @as(Vector3, @splat(2.0));
+        const viewport_upper_left =
+            camera_center -
+            @as(Vector3, @splat(focal_length)) * w -
+            viewport_u / @as(Vector3, @splat(2.0)) -
+            viewport_v / @as(Vector3, @splat(2.0));
 
         // render
         const frame = metal.Frame.init(renderer) orelse continue;
@@ -163,7 +174,7 @@ pub fn main(init: std.process.Init) !void {
         const params = RayTraceInput{
             .image_width = image_width,
             .image_height = image_height,
-            .camera_center = .{ 0, 0, 0 },
+            .camera_center = camera_center,
             .pixel_delta_u = pixel_delta_u,
             .pixel_delta_v = pixel_delta_v,
             .viewport_upper_left = viewport_upper_left,
