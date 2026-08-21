@@ -1,5 +1,4 @@
 const std = @import("std");
-const math = std.math;
 const zen = @import("zen");
 const metal = zen.graphics.metal;
 const common = @import("common.zig");
@@ -7,6 +6,7 @@ const common = @import("common.zig");
 const Vector3 = common.Vector3;
 const Material = common.Material;
 const Sphere = common.Sphere;
+const Camera = @import("types/Camera.zig");
 
 pub const RayTraceInput = extern struct {
     image_width: u32,
@@ -26,10 +26,7 @@ pub fn main(init: std.process.Init) !void {
 
     const width = 1280;
     const height = 720;
-    const vfov: f32 = 20;
-    const lookfrom = Vector3{ -2.0, 2.0, 1.0 };
-    const lookat = Vector3{ 0.0, 0.0, -1.0 };
-    const vup = Vector3{ 0.0, 1.0, 0.0 };
+    const camera = Camera{};
 
     var image_width: u32 = width;
     var image_height: u32 = height;
@@ -138,31 +135,7 @@ pub fn main(init: std.process.Init) !void {
                 return error.MetalTextureFailed;
         }
 
-        const aspect_ratio =
-            @as(f32, @floatFromInt(image_width)) /
-            @as(f32, @floatFromInt(image_height));
-        const camera_center = lookfrom;
-        const camera_offset = lookfrom - lookat;
-        const focal_length = @sqrt(@reduce(.Add, camera_offset * camera_offset));
-        const theta = common.degrees_to_radians(vfov);
-        const ih = math.tan(theta / 2);
-        const viewport_height: f32 = 2.0 * ih * focal_length;
-        const viewport_width = viewport_height * aspect_ratio;
-        const w = common.normalize(lookfrom - lookat);
-        const u = common.normalize(common.cross(vup, w));
-        const v = common.cross(w, u);
-
-        const viewport_u = @as(Vector3, @splat(viewport_width)) * u;
-        const viewport_v = @as(Vector3, @splat(-viewport_height)) * v;
-
-        const pixel_delta_u = viewport_u / @as(Vector3, @splat(@as(f32, @floatFromInt(image_width))));
-        const pixel_delta_v = viewport_v / @as(Vector3, @splat(@as(f32, @floatFromInt(image_height))));
-
-        const viewport_upper_left =
-            camera_center -
-            @as(Vector3, @splat(focal_length)) * w -
-            viewport_u / @as(Vector3, @splat(2.0)) -
-            viewport_v / @as(Vector3, @splat(2.0));
+        const camera_input = camera.buildShaderInput(image_width, image_height);
 
         // render
         const frame = metal.Frame.init(renderer) orelse continue;
@@ -174,10 +147,10 @@ pub fn main(init: std.process.Init) !void {
         const params = RayTraceInput{
             .image_width = image_width,
             .image_height = image_height,
-            .camera_center = camera_center,
-            .pixel_delta_u = pixel_delta_u,
-            .pixel_delta_v = pixel_delta_v,
-            .viewport_upper_left = viewport_upper_left,
+            .camera_center = camera_input.camera_center,
+            .pixel_delta_u = camera_input.pixel_delta_u,
+            .pixel_delta_v = camera_input.pixel_delta_v,
+            .viewport_upper_left = camera_input.viewport_upper_left,
             .sphere_count = spheres.len,
             .material_count = materials.len,
         };

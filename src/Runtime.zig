@@ -19,10 +19,29 @@ pub const Event = union(enum) {
 };
 
 pub const KeyEvent = struct {
+    key: Key,
     keycode: u32,
     scancode: u32,
     modifiers: u16,
     repeat: bool,
+};
+
+pub const Key = enum {
+    unknown,
+    w,
+    a,
+    s,
+    d,
+    q,
+    e,
+    up,
+    down,
+    left,
+    right,
+    escape,
+    space,
+    left_shift,
+    right_shift,
 };
 
 pub const MouseMotionEvent = struct {
@@ -34,10 +53,20 @@ pub const MouseMotionEvent = struct {
 };
 
 pub const MouseButtonEvent = struct {
-    button: u8,
+    button: MouseButton,
+    raw_button: u8,
     clicks: u8,
     x: f32,
     y: f32,
+};
+
+pub const MouseButton = enum {
+    unknown,
+    left,
+    middle,
+    right,
+    x1,
+    x2,
 };
 
 pub const MouseWheelEvent = struct {
@@ -166,6 +195,7 @@ pub fn size(runtime: *Runtime) ?Size {
 
 fn keyEvent(event: sdl.SDL_KeyboardEvent) KeyEvent {
     return .{
+        .key = keyFromScancode(event.scancode),
         .keycode = event.key,
         .scancode = @intCast(event.scancode),
         .modifiers = event.mod,
@@ -175,9 +205,41 @@ fn keyEvent(event: sdl.SDL_KeyboardEvent) KeyEvent {
 
 fn mouseButtonEvent(event: sdl.SDL_MouseButtonEvent) MouseButtonEvent {
     return .{
-        .button = event.button,
+        .button = mouseButtonFromSdl(event.button),
+        .raw_button = event.button,
         .clicks = event.clicks,
         .x = event.x,
         .y = event.y,
+    };
+}
+
+fn keyFromScancode(scancode: sdl.SDL_Scancode) Key {
+    return switch (scancode) {
+        sdl.SDL_SCANCODE_W => .w,
+        sdl.SDL_SCANCODE_A => .a,
+        sdl.SDL_SCANCODE_S => .s,
+        sdl.SDL_SCANCODE_D => .d,
+        sdl.SDL_SCANCODE_Q => .q,
+        sdl.SDL_SCANCODE_E => .e,
+        sdl.SDL_SCANCODE_UP => .up,
+        sdl.SDL_SCANCODE_DOWN => .down,
+        sdl.SDL_SCANCODE_LEFT => .left,
+        sdl.SDL_SCANCODE_RIGHT => .right,
+        sdl.SDL_SCANCODE_ESCAPE => .escape,
+        sdl.SDL_SCANCODE_SPACE => .space,
+        sdl.SDL_SCANCODE_LSHIFT => .left_shift,
+        sdl.SDL_SCANCODE_RSHIFT => .right_shift,
+        else => .unknown,
+    };
+}
+
+fn mouseButtonFromSdl(button: u8) MouseButton {
+    return switch (button) {
+        sdl.SDL_BUTTON_LEFT => .left,
+        sdl.SDL_BUTTON_MIDDLE => .middle,
+        sdl.SDL_BUTTON_RIGHT => .right,
+        sdl.SDL_BUTTON_X1 => .x1,
+        sdl.SDL_BUTTON_X2 => .x2,
+        else => .unknown,
     };
 }
