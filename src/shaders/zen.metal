@@ -39,12 +39,21 @@ fragment float4 fragment_main(
     VertexOut in [[stage_in]],
     texture2d<float> image [[texture(0)]]
 ) {
-    //constexpr sampler s(address::clamp_to_edge, filter::nearest);
     constexpr sampler s(address::clamp_to_edge, filter::linear);
+    float3 color = image.sample(s, in.uv).rgb;
+    return float4(color, 1.0);
+}
+
+fragment float4 fragment_pixelated(
+    VertexOut in [[stage_in]],
+    texture2d<float> image [[texture(0)]]
+) {
+    constexpr sampler s(address::clamp_to_edge, filter::nearest);
     float3 color = image.sample(s, in.uv).rgb;
     //color = floor(color * 24.0) / 24.0;
     return float4(color, 1.0);
 }
+
 
 struct RayTraceInput {
     uint image_width;
@@ -53,7 +62,14 @@ struct RayTraceInput {
     float3 camera_center;
     float3 pixel_delta_u;
     float3 pixel_delta_v;
+    float defocus_angle;
+    float focus_dist;
+    float3 defocus_disk_u;
+    float3 defocus_disk_v;
+
     float3 viewport_upper_left;
+    uint samples_per_pixel;
+    uint ray_depth;
 
     uint sphere_count;
     uint material_count;
@@ -77,10 +93,15 @@ kernel void ray_trace_kernel(
         input.camera_center,
         input.pixel_delta_u,
         input.pixel_delta_v,
+        input.defocus_angle,
+        input.focus_dist,
+        input.defocus_disk_u,
+        input.defocus_disk_v,
         input.viewport_upper_left,
+        input.samples_per_pixel,
     };
 
-    World world = {spheres, input.sphere_count, materials, input.material_count};
+    World world = {spheres, input.sphere_count, materials, input.material_count, input.ray_depth};
 
     float3 color = camera.render(world, gid);
     image.write(float4(color, 1.0), gid);

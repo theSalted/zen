@@ -12,12 +12,16 @@ struct Camera {
     float3 camera_center;
     float3 pixel_delta_u;
     float3 pixel_delta_v;
+    float defocus_angle;
+    float focus_dist;
+    float3 defocus_disk_u;
+    float3 defocus_disk_v;
     float3 viewport_upper_left;
-    int samples_per_pixel = 30;
+    uint samples_per_pixel;
 
     float3 render(World world, uint2 gid) {
         float3 color = float3(0.0);
-        for (int i = 0; i < samples_per_pixel; i++) {
+        for (uint i = 0; i < samples_per_pixel; i++) {
             Ray ray = get_ray(gid, uint(i));
             color += world.trace(ray, gid, uint(i));
         }
@@ -29,21 +33,42 @@ struct Camera {
 
     private:
         Ray get_ray(uint2 gid, uint sample_index) {
-            float3 offset = sample_square(gid, sample_index);
+            PRNG prng = PRNG(gid.x, gid.y, sample_index);
+            float3 offset = sample_square(prng);
 
             float3 pixel_center =
                 viewport_upper_left
                 + (float(gid.x) + 0.5 + offset.x) * pixel_delta_u
                 + (float(gid.y) + 0.5 + offset.y) * pixel_delta_v;
 
-            float3 ray_origin = camera_center;
-            float3 ray_direction = pixel_center - camera_center;
+            float3 ray_origin = (defocus_angle <= 0) ? camera_center : defocus_disk_sample(prng);
+            float3 ray_direction = pixel_center - ray_origin;
 
             return {ray_origin, ray_direction};
         }
 
-        float3 sample_square(uint2 seed, uint sample_index) {
-            PRNG prng = PRNG(seed.x, seed.y, sample_index);
+        float3 defocus_disk_sample(thread PRNG& prng) const {
+            float3 p = random_in_unit_disk(prng);
+            return camera_center + (p[0] * defocus_disk_u) + (p[1] * defocus_disk_v);
+        }
+
+        float3 random_in_unit_disk(thread PRNG& prng) const {
+            uint max_depth = 10;
+
+            for (uint i = 0; i < max_depth; ++i) {
+                float3 p = float3(prng.rand(-1.0, 1.0), prng.rand(-1.0, 1.0), 0.0);
+                if (dot(p, p) < 1.0) {
+                    return p;
+                }
+            }
+
+            float r = sqrt(prng.rand());
+            float theta = 2.0 * M_PI_F * prng.rand();
+
+            return float3(r * cos(theta), r * sin(theta), 0.0);
+        }
+
+        float3 sample_square(thread PRNG& prng) {
             return float3(prng.rand() - 0.5, prng.rand() - 0.5, 0.0);
         }
 

@@ -9,10 +9,22 @@ pub const ShaderInput = struct {
     camera_center: Vector3,
     pixel_delta_u: Vector3,
     pixel_delta_v: Vector3,
+    defocus_angle: f32,
+    focus_dist: f32,
+    defocus_disk_u: Vector3,
+    defocus_disk_v: Vector3,
+
     viewport_upper_left: Vector3,
+    samples_per_pixel: u32,
+    ray_depth: u32,
 };
 
 vfov: f32 = 90.0,
+defocus_angle: f32 = 0.0,
+focus_dist: f32 = 10.0,
+samples_per_pixel: u32 = 30,
+ray_depth: u32 = 10,
+
 transform: Vector3 = .{ 0.0, 0.0, 0.0 },
 lookat: Vector3 = .{ 0.0, 0.0, -1.0 },
 vup: Vector3 = .{ 0.0, 1.0, 0.0 },
@@ -37,12 +49,11 @@ pub fn buildShaderInput(camera: Camera, image_width: u32, image_height: u32) Sha
         @as(f32, @floatFromInt(image_width)) /
         @as(f32, @floatFromInt(image_height));
     const camera_center = camera.transform;
-    const camera_offset = camera.transform - camera.lookat;
-    const focal_length = @sqrt(@reduce(.Add, camera_offset * camera_offset));
     const theta = common.degrees_to_radians(camera.vfov);
     const ih = math.tan(theta / 2);
-    const viewport_height: f32 = 2.0 * ih * focal_length;
+    const viewport_height: f32 = 2.0 * ih * camera.focus_dist;
     const viewport_width = viewport_height * aspect_ratio;
+
     const w = common.normalize(camera.transform - camera.lookat);
     const u = common.normalize(common.cross(camera.vup, w));
     const v = common.cross(w, u);
@@ -52,17 +63,26 @@ pub fn buildShaderInput(camera: Camera, image_width: u32, image_height: u32) Sha
 
     const pixel_delta_u = viewport_u / @as(Vector3, @splat(@as(f32, @floatFromInt(image_width))));
     const pixel_delta_v = viewport_v / @as(Vector3, @splat(@as(f32, @floatFromInt(image_height))));
-
     const viewport_upper_left =
         camera_center -
-        @as(Vector3, @splat(focal_length)) * w -
+        @as(Vector3, @splat(camera.focus_dist)) * w -
         viewport_u / @as(Vector3, @splat(2.0)) -
         viewport_v / @as(Vector3, @splat(2.0));
+
+    const defocus_radius = camera.focus_dist * math.tan(common.degrees_to_radians(camera.defocus_angle / 2.0));
+    const defocus_disk_u = u * @as(Vector3, @splat(defocus_radius));
+    const defocus_disk_v = v * @as(Vector3, @splat(defocus_radius));
 
     return .{
         .camera_center = camera_center,
         .pixel_delta_u = pixel_delta_u,
         .pixel_delta_v = pixel_delta_v,
+        .defocus_angle = camera.defocus_angle,
+        .focus_dist = camera.focus_dist,
+        .defocus_disk_u = defocus_disk_u,
+        .defocus_disk_v = defocus_disk_v,
+        .samples_per_pixel = camera.samples_per_pixel,
+        .ray_depth = camera.ray_depth,
         .viewport_upper_left = viewport_upper_left,
     };
 }

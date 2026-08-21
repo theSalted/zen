@@ -16,6 +16,7 @@ struct World {
     uint sphere_count;
     constant Material* materials;
     uint material_count;
+    uint ray_depth;
 
     bool hit(
         Ray ray,
@@ -41,7 +42,7 @@ struct World {
 
     float3 trace(Ray ray, uint2 gid, uint sample_index) {
         PRNG prng = PRNG(gid.x, gid.y, sample_index);
-        return trace(ray, prng, 10);
+        return trace(ray, prng, ray_depth);
     }
 
     private:
