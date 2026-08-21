@@ -59,14 +59,15 @@ struct World {
                 float3 bounce_attenuation;
 
                 if (!Material::scatter(mat, ray, rec, prng, scattered, bounce_attenuation)) {
-                    return float3(0.0);
+                    return float3(0.0, 0.0, 0.0);
                 }
 
                 ray = scattered;
                 attenuation *= bounce_attenuation;
             }
 
-            return float3(0.0);
+            //return float3(prng.rand(0.0, 0.3), prng.rand(0.0, 0.6), prng.rand(0.0, 0.2));
+            return float3(0.0, 0.0, 0.0);
         }
 
         float3 sky(float3 direction) {

@@ -26,12 +26,15 @@ pub fn main(init: std.process.Init) !void {
 
     const width = 1280;
     const height = 720;
+    const upscale_factor: u32 = 1;
     const move_speed: f32 = 2.0;
     const mouse_sensitivity: f32 = 0.003;
 
     var camera = Camera{};
-    var image_width: u32 = width;
-    var image_height: u32 = height;
+    var window_width: u32 = width;
+    var window_height: u32 = height;
+    var image_width: u32 = scaledDimension(width, upscale_factor);
+    var image_height: u32 = scaledDimension(height, upscale_factor);
     var camera_control = CameraControl{};
     var last_frame_ns = zen.Runtime.ticksNS();
 
@@ -55,8 +58,8 @@ pub fn main(init: std.process.Init) !void {
     defer compute_pipeline.deinit();
 
     const image_desc = metal.TextureDesc{
-        .width = width,
-        .height = height,
+        .width = image_width,
+        .height = image_height,
         .format = .rgba8_unorm,
         .usage = @as(u32, @bitCast(metal.TextureUsage{
             .shader_read = true,
@@ -149,16 +152,23 @@ pub fn main(init: std.process.Init) !void {
 
         const new_width = runtime_size.width;
         const new_height = runtime_size.height;
+        const new_image_width = scaledDimension(new_width, upscale_factor);
+        const new_image_height = scaledDimension(new_height, upscale_factor);
 
         // render logic
 
         // resize texture
-        if (new_width != image_width or new_height != image_height) {
+        if (new_width != window_width or new_height != window_height) {
             renderer.resize(new_width, new_height);
+            window_width = new_width;
+            window_height = new_height;
+        }
+
+        if (new_image_width != image_width or new_image_height != image_height) {
             image.deinit();
 
-            image_width = new_width;
-            image_height = new_height;
+            image_width = new_image_width;
+            image_height = new_image_height;
 
             const resized_image_desc = metal.TextureDesc{
                 .width = image_width,
@@ -220,6 +230,10 @@ pub fn main(init: std.process.Init) !void {
         render_pass.end();
         frame.present();
     }
+}
+
+fn scaledDimension(value: u32, scale: u32) u32 {
+    return @max(1, value / scale);
 }
 
 const CameraControl = struct {

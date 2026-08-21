@@ -39,8 +39,11 @@ fragment float4 fragment_main(
     VertexOut in [[stage_in]],
     texture2d<float> image [[texture(0)]]
 ) {
+    //constexpr sampler s(address::clamp_to_edge, filter::nearest);
     constexpr sampler s(address::clamp_to_edge, filter::linear);
-    return image.sample(s, in.uv);
+    float3 color = image.sample(s, in.uv).rgb;
+    //color = floor(color * 24.0) / 24.0;
+    return float4(color, 1.0);
 }
 
 struct RayTraceInput {
