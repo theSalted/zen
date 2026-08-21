@@ -8,6 +8,45 @@ pub const Size = struct {
     height: u32,
 };
 
+pub const Event = union(enum) {
+    quit,
+    key_down: KeyEvent,
+    key_up: KeyEvent,
+    mouse_motion: MouseMotionEvent,
+    mouse_button_down: MouseButtonEvent,
+    mouse_button_up: MouseButtonEvent,
+    mouse_wheel: MouseWheelEvent,
+};
+
+pub const KeyEvent = struct {
+    keycode: u32,
+    scancode: u32,
+    modifiers: u16,
+    repeat: bool,
+};
+
+pub const MouseMotionEvent = struct {
+    x: f32,
+    y: f32,
+    dx: f32,
+    dy: f32,
+    buttons: u32,
+};
+
+pub const MouseButtonEvent = struct {
+    button: u8,
+    clicks: u8,
+    x: f32,
+    y: f32,
+};
+
+pub const MouseWheelEvent = struct {
+    x: f32,
+    y: f32,
+    mouse_x: f32,
+    mouse_y: f32,
+};
+
 window: *sdl.SDL_Window,
 metal_view: sdl.SDL_MetalView,
 running: bool,
@@ -51,14 +90,50 @@ pub fn deinit(runtime: *Runtime) void {
     sdl.SDL_Quit();
 }
 
-pub fn pollEvents(runtime: *Runtime) void {
+pub fn pollEvent(runtime: *Runtime) ?Event {
     var event: sdl.SDL_Event = undefined;
 
-    while (sdl.SDL_PollEvent(&event)) {
-        switch (event.type) {
-            sdl.SDL_EVENT_QUIT => runtime.running = false,
-            else => {},
-        }
+    if (!sdl.SDL_PollEvent(&event)) {
+        return null;
+    }
+
+    switch (event.type) {
+        sdl.SDL_EVENT_QUIT => {
+            runtime.running = false;
+            return .quit;
+        },
+
+        sdl.SDL_EVENT_KEY_DOWN => return .{ .key_down = keyEvent(event.key) },
+        sdl.SDL_EVENT_KEY_UP => return .{ .key_up = keyEvent(event.key) },
+
+        sdl.SDL_EVENT_MOUSE_MOTION => return .{
+            .mouse_motion = .{
+                .x = event.motion.x,
+                .y = event.motion.y,
+                .dx = event.motion.xrel,
+                .dy = event.motion.yrel,
+                .buttons = event.motion.state,
+            },
+        },
+
+        sdl.SDL_EVENT_MOUSE_BUTTON_DOWN => return .{
+            .mouse_button_down = mouseButtonEvent(event.button),
+        },
+
+        sdl.SDL_EVENT_MOUSE_BUTTON_UP => return .{
+            .mouse_button_up = mouseButtonEvent(event.button),
+        },
+
+        sdl.SDL_EVENT_MOUSE_WHEEL => return .{
+            .mouse_wheel = .{
+                .x = event.wheel.x,
+                .y = event.wheel.y,
+                .mouse_x = event.wheel.mouse_x,
+                .mouse_y = event.wheel.mouse_y,
+            },
+        },
+
+        else => return pollEvent(runtime),
     }
 }
 
@@ -86,5 +161,23 @@ pub fn size(runtime: *Runtime) ?Size {
     return .{
         .width = @intCast(width),
         .height = @intCast(height),
+    };
+}
+
+fn keyEvent(event: sdl.SDL_KeyboardEvent) KeyEvent {
+    return .{
+        .keycode = event.key,
+        .scancode = @intCast(event.scancode),
+        .modifiers = event.mod,
+        .repeat = event.repeat,
+    };
+}
+
+fn mouseButtonEvent(event: sdl.SDL_MouseButtonEvent) MouseButtonEvent {
+    return .{
+        .button = event.button,
+        .clicks = event.clicks,
+        .x = event.x,
+        .y = event.y,
     };
 }

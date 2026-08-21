@@ -98,7 +98,11 @@ pub fn main(init: std.process.Init) !void {
     defer sphere_buffer.deinit();
 
     while (runtime.isRunning()) {
-        runtime.pollEvents();
+        while (runtime.pollEvent()) |event| {
+            switch (event) {
+                else => {},
+            }
+        }
 
         const runtime_size = runtime.size() orelse {
             continue;
