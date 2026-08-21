@@ -26,10 +26,14 @@ pub fn main(init: std.process.Init) !void {
 
     const width = 1280;
     const height = 720;
-    const camera = Camera{};
+    const move_speed: f32 = 2.0;
+    const mouse_sensitivity: f32 = 0.003;
 
+    var camera = Camera{};
     var image_width: u32 = width;
     var image_height: u32 = height;
+    var camera_control = CameraControl{};
+    var last_frame_ns = zen.Runtime.ticksNS();
 
     var runtime = try zen.Runtime.init(width, height);
     defer runtime.deinit();
@@ -98,11 +102,46 @@ pub fn main(init: std.process.Init) !void {
     defer sphere_buffer.deinit();
 
     while (runtime.isRunning()) {
+        const frame_ns = zen.Runtime.ticksNS();
+        const delta_time =
+            @as(f32, @floatFromInt(frame_ns - last_frame_ns)) /
+            @as(f32, @floatFromInt(std.time.ns_per_s));
+        last_frame_ns = frame_ns;
+
+        // EVENT LOOP
         while (runtime.pollEvent()) |event| {
             switch (event) {
+                .key_down => |key| {
+                    if (key.key == .f) {
+                        if (!camera_control.rotate_camera) {
+                            camera_control.rotate_camera = true;
+                            try runtime.setRelativeMouseMode(true);
+                        }
+                    }
+                    camera_control.setMovementKey(key.key, true);
+                },
+                .key_up => |key| {
+                    if (key.key == .f) {
+                        if (camera_control.rotate_camera) {
+                            camera_control.rotate_camera = false;
+                            try runtime.setRelativeMouseMode(false);
+                        }
+                    }
+                    camera_control.setMovementKey(key.key, false);
+                },
+                .mouse_motion => |mouse| {
+                    if (camera_control.rotate_camera) {
+                        camera.rotate(
+                            -mouse.dx * mouse_sensitivity,
+                            -mouse.dy * mouse_sensitivity,
+                        );
+                    }
+                },
                 else => {},
             }
         }
+
+        camera_control.update(&camera, delta_time, move_speed);
 
         const runtime_size = runtime.size() orelse {
             continue;
@@ -182,3 +221,46 @@ pub fn main(init: std.process.Init) !void {
         frame.present();
     }
 }
+
+const CameraControl = struct {
+    move_forward: bool = false,
+    move_backward: bool = false,
+    move_left: bool = false,
+    move_right: bool = false,
+    move_up: bool = false,
+    move_down: bool = false,
+    rotate_camera: bool = false,
+
+    fn setMovementKey(control: *CameraControl, key: zen.Runtime.Key, down: bool) void {
+        switch (key) {
+            .w, .up => control.move_forward = down,
+            .s, .down => control.move_backward = down,
+            .a, .left => control.move_left = down,
+            .d, .right => control.move_right = down,
+            .e, .space => control.move_up = down,
+            .q => control.move_down = down,
+            else => {},
+        }
+    }
+
+    fn update(control: CameraControl, camera: *Camera, delta_time: f32, speed: f32) void {
+        const forward = common.normalize(camera.lookat - camera.transform);
+        const right = common.normalize(common.cross(forward, camera.vup));
+        const up = common.normalize(camera.vup);
+        var movement = Vector3{ 0.0, 0.0, 0.0 };
+
+        if (control.move_forward) movement += forward;
+        if (control.move_backward) movement -= forward;
+        if (control.move_right) movement += right;
+        if (control.move_left) movement -= right;
+        if (control.move_up) movement += up;
+        if (control.move_down) movement -= up;
+
+        if (@reduce(.Add, movement * movement) > 0.0) {
+            camera.translate(
+                common.normalize(movement) *
+                    @as(Vector3, @splat(speed * delta_time)),
+            );
+        }
+    }
+};

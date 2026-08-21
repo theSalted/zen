@@ -32,6 +32,7 @@ pub const Key = enum {
     a,
     s,
     d,
+    f,
     q,
     e,
     up,
@@ -193,6 +194,17 @@ pub fn size(runtime: *Runtime) ?Size {
     };
 }
 
+pub fn setRelativeMouseMode(runtime: *Runtime, enabled: bool) !void {
+    if (!sdl.SDL_SetWindowRelativeMouseMode(runtime.window, enabled)) {
+        std.log.err("Couldn't set relative mouse mode: {s}", .{sdl.SDL_GetError()});
+        return error.SdlRelativeMouseModeFailed;
+    }
+}
+
+pub fn ticksNS() u64 {
+    return sdl.SDL_GetTicksNS();
+}
+
 fn keyEvent(event: sdl.SDL_KeyboardEvent) KeyEvent {
     return .{
         .key = keyFromScancode(event.scancode),
@@ -219,6 +231,7 @@ fn keyFromScancode(scancode: sdl.SDL_Scancode) Key {
         sdl.SDL_SCANCODE_A => .a,
         sdl.SDL_SCANCODE_S => .s,
         sdl.SDL_SCANCODE_D => .d,
+        sdl.SDL_SCANCODE_F => .f,
         sdl.SDL_SCANCODE_Q => .q,
         sdl.SDL_SCANCODE_E => .e,
         sdl.SDL_SCANCODE_UP => .up,
