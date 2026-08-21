@@ -1,7 +1,7 @@
 const std = @import("std");
 const math = std.math;
-const sdl = @import("sdl");
-const metal = @import("metal.zig");
+const zen = @import("zen");
+const metal = zen.graphics.metal;
 const common = @import("common.zig");
 
 const Vector3 = common.Vector3;
@@ -24,38 +24,14 @@ pub const RayTraceInput = extern struct {
 pub fn main(init: std.process.Init) !void {
     _ = init;
 
-    _ = sdl.SDL_SetAppMetadata("Zen", "0.0.0", "app.yuhao.zen");
-
-    if (!sdl.SDL_Init(sdl.SDL_INIT_VIDEO)) {
-        std.log.err("Couldn't initialize SDL: {s}", .{sdl.SDL_GetError()});
-        return error.SdlInitFailed;
-    }
-    defer sdl.SDL_Quit();
-
     const width = 1280;
     const height = 720;
     const vfov: f32 = 90;
 
-    const window = sdl.SDL_CreateWindow("Zen", width, height, sdl.SDL_WINDOW_METAL | sdl.SDL_WINDOW_RESIZABLE);
+    var runtime = try zen.Runtime.init(width, height);
+    defer runtime.deinit();
 
-    if (window == null) {
-        std.log.err("Couldn't crate window: {s}", .{sdl.SDL_GetError()});
-        return error.SdlCreateWindowFailed;
-    }
-
-    defer sdl.SDL_DestroyWindow(window.?);
-
-    const metal_view = sdl.SDL_Metal_CreateView(window);
-    defer sdl.SDL_Metal_DestroyView(metal_view);
-
-    const layer = sdl.SDL_Metal_GetLayer(metal_view);
-
-    if (layer == null) {
-        std.log.err("Couldn't create metal render layer: {s}", .{sdl.SDL_GetError()});
-        return error.SdlCreateMetalLayerFailed;
-    }
-
-    const renderer = metal.Renderer.init(layer.?, width, height) orelse
+    const renderer = metal.Renderer.init(try runtime.metalLayer(), width, height) orelse
         return error.MetalCreateFailed;
     defer renderer.deinit();
 
@@ -121,29 +97,15 @@ pub fn main(init: std.process.Init) !void {
         return error.MetalBufferFailed;
     defer sphere_buffer.deinit();
 
-    var running = true;
+    while (runtime.isRunning()) {
+        runtime.pollEvents();
 
-    while (running) {
-        var event: sdl.SDL_Event = undefined;
-
-        var w: c_int = 0;
-        var h: c_int = 0;
-
-        _ = sdl.SDL_GetWindowSizeInPixels(window, &w, &h);
-
-        while (sdl.SDL_PollEvent(&event)) {
-            switch (event.type) {
-                sdl.SDL_EVENT_QUIT => running = false,
-                else => {},
-            }
-        }
-
-        if (w <= 0 or h <= 0) {
+        const runtime_size = runtime.size() orelse {
             continue;
-        }
+        };
 
-        const new_width: u32 = @intCast(w);
-        const new_height: u32 = @intCast(h);
+        const new_width = runtime_size.width;
+        const new_height = runtime_size.height;
 
         // render logic
 

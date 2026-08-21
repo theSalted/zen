@@ -4,7 +4,7 @@ const app_name = "zen";
 
 const root_source = "src/main.zig";
 const module_source = "src/root.zig";
-const metal_source = "src/metal.m";
+const metal_source = "src/graphics/metal.m";
 const sdl_header = "src/sdl.h";
 
 const vendor_source_dir = "vendor";
@@ -100,7 +100,6 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
             .imports = &.{
                 .{ .name = "zen", .module = mod },
-                .{ .name = "sdl", .module = sdl_mod },
             },
         }),
     });
