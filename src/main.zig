@@ -54,7 +54,7 @@ pub const RayTraceInput = extern struct {
 };
 
 pub fn main() !void {
-    return scene1();
+    return scene2();
 }
 
 fn scene1() !void {
@@ -128,11 +128,11 @@ fn scene1() !void {
     defer material_buffer.deinit();
 
     const spheres = [_]Sphere{
-        .{ .center = .{ 0, -100.5, -1 }, .radius = 100, .material_index = 0 },
-        .{ .center = .{ 0.0, 0.0, -1.2 }, .radius = 0.5, .material_index = 1 },
-        .{ .center = .{ -1.0, 0.0, -1.0 }, .radius = 0.5, .material_index = 2 },
-        .{ .center = .{ -1.0, 0.0, -1.0 }, .radius = 0.4, .material_index = 4 },
-        .{ .center = .{ 1.0, 0.0, -1.0 }, .radius = 0.5, .material_index = 3 },
+        Sphere.stationary(.{ 0, -100.5, -1 }, 100, 0),
+        Sphere.stationary(.{ 0.0, 0.0, -1.2 }, 0.5, 1),
+        Sphere.stationary(.{ -1.0, 0.0, -1.0 }, 0.5, 2),
+        Sphere.stationary(.{ -1.0, 0.0, -1.0 }, 0.4, 4),
+        Sphere.stationary(.{ 1.0, 0.0, -1.0 }, 0.5, 3),
     };
     const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
         return error.MetalBufferFailed;
@@ -266,7 +266,7 @@ fn scene1() !void {
 fn scene2() !void {
     const width = 1200;
     const height = 675;
-    const upscale_factor: u32 = 12;
+    const upscale_factor: u32 = 2;
     const move_speed: f32 = 1.0;
     const mouse_sensitivity: f32 = 0.003;
     const max_scene_objects = 1 + 22 * 22 + 3;
@@ -277,8 +277,8 @@ fn scene2() !void {
         .transform = .{ 13.0, 2.0, 3.0 },
         .lookat = .{ 0.0, 0.0, 0.0 },
         .vup = .{ 0.0, 1.0, 0.0 },
-        .samples_per_pixel = 20,
-        .ray_depth = 4,
+        .samples_per_pixel = 10,
+        .ray_depth = 3,
     };
     var window_width: u32 = width;
     var window_height: u32 = height;
@@ -298,7 +298,7 @@ fn scene2() !void {
         return error.MetalShaderLibraryFailed;
     defer library.deinit();
 
-    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_pixelated") orelse
+    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_main") orelse
         return error.MetalRenderPipelineFailed;
     defer render_pipeline.deinit();
 
@@ -331,7 +331,7 @@ fn scene2() !void {
     var sphere_count: u32 = 0;
 
     materials[material_count] = .{ .type = .Lambertian, .albedo = .{ 0.5, 0.5, 0.5 } };
-    spheres[sphere_count] = .{ .center = .{ 0.0, -1000.0, 0.0 }, .radius = 1000.0, .material_index = material_count };
+    spheres[sphere_count] = Sphere.stationary(.{ 0.0, -1000.0, 0.0 }, 1000.0, material_count);
     material_count += 1;
     sphere_count += 1;
 
@@ -348,13 +348,17 @@ fn scene2() !void {
             const offset = center - Vector3{ 4.0, 0.2, 0.0 };
 
             if (@sqrt(@reduce(.Add, offset * offset)) > 0.9) {
+                var sphere = Sphere.stationary(center, 0.2, material_count);
+
                 if (choose_mat < 0.8) {
                     const albedo = Vector3{
                         random.float(f32) * random.float(f32),
                         random.float(f32) * random.float(f32),
                         random.float(f32) * random.float(f32),
                     };
+                    const center2 = center + Vector3{ 0.0, random.float(f32) * 0.5, 0.0 };
                     materials[material_count] = .{ .type = .Lambertian, .albedo = albedo };
+                    sphere = Sphere.moving(center, center2, 0.2, material_count);
                 } else if (choose_mat < 0.95) {
                     const albedo = Vector3{
                         0.5 + 0.5 * random.float(f32),
@@ -367,7 +371,7 @@ fn scene2() !void {
                     materials[material_count] = .{ .type = .Dialectric, .refraction_index = 1.5 };
                 }
 
-                spheres[sphere_count] = .{ .center = center, .radius = 0.2, .material_index = material_count };
+                spheres[sphere_count] = sphere;
                 material_count += 1;
                 sphere_count += 1;
             }
@@ -375,17 +379,17 @@ fn scene2() !void {
     }
 
     materials[material_count] = .{ .type = .Dialectric, .refraction_index = 1.5 };
-    spheres[sphere_count] = .{ .center = .{ 0.0, 1.0, 0.0 }, .radius = 1.0, .material_index = material_count };
+    spheres[sphere_count] = Sphere.stationary(.{ 0.0, 1.0, 0.0 }, 1.0, material_count);
     material_count += 1;
     sphere_count += 1;
 
     materials[material_count] = .{ .type = .Lambertian, .albedo = .{ 0.4, 0.2, 0.1 } };
-    spheres[sphere_count] = .{ .center = .{ -4.0, 1.0, 0.0 }, .radius = 1.0, .material_index = material_count };
+    spheres[sphere_count] = Sphere.stationary(.{ -4.0, 1.0, 0.0 }, 1.0, material_count);
     material_count += 1;
     sphere_count += 1;
 
     materials[material_count] = .{ .type = .Metal, .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 };
-    spheres[sphere_count] = .{ .center = .{ 4.0, 1.0, 0.0 }, .radius = 1.0, .material_index = material_count };
+    spheres[sphere_count] = Sphere.stationary(.{ 4.0, 1.0, 0.0 }, 1.0, material_count);
     material_count += 1;
     sphere_count += 1;
 

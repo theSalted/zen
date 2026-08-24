@@ -7,8 +7,15 @@ using namespace metal;
 struct Ray {
     float3 origin;
     float3 direction;
+    float time;
 
-    float3 at(float t) {
+    Ray() {}
+
+    Ray(float3 origin, float3 direction): origin(origin), direction(direction), time(0.0) {}
+
+    Ray(float3 origin, float3 direction, float time): origin(origin), direction(direction), time(time) {}
+
+    float3 at(float t) const {
         return origin + t * direction;
     }
 };

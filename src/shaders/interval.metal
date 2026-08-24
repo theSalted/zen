@@ -30,6 +30,11 @@ struct Interval {
         return x < min ? min : (x > max ? max : x);
     }
 
+    Interval expand(float delta) const {
+        float padding = delta / 2.0;
+        return Interval {min - padding, max - padding};
+    }
+
     static Interval empty() {
         return Interval(INFINITY, -INFINITY);
     }

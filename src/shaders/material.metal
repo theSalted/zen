@@ -29,7 +29,7 @@ struct Material {
     ) {
         switch (mat.type) {
             case Lambertian:
-                return lambertian(mat, rec, prng, scattered, attenuation);
+                return lambertian(mat, ray_in, rec, prng, scattered, attenuation);
 
             case Metal:
                 return metal(mat, ray_in, rec, prng, scattered, attenuation);
@@ -44,6 +44,7 @@ struct Material {
 
     static bool lambertian(
         Material mat,
+        Ray ray_in,
         HitRecord rec,
         thread PRNG& prng,
         thread Ray& scattered,
@@ -54,7 +55,7 @@ struct Material {
             direction = rec.normal;
         }
 
-        scattered = Ray{rec.point, direction};
+        scattered = Ray{rec.point, direction, ray_in.time};
         attenuation = mat.albedo;
 
         return true;
@@ -71,7 +72,7 @@ struct Material {
         float3 reflected = reflect(normalize(ray_in.direction), rec.normal);
         reflected = normalize(reflected) + mat.fuzz * prng.rand_unit_vector();
 
-        scattered = Ray{rec.point, reflected};
+        scattered = Ray{rec.point, reflected, ray_in.time};
         attenuation = mat.albedo;
 
         return dot(scattered.direction, rec.normal) > 0.0;
@@ -104,7 +105,7 @@ struct Material {
         else
             direction = refract(unit_direction, rec.normal, ri);
 
-        scattered = Ray{rec.point, direction};
+        scattered = Ray{rec.point, direction, ray_in.time};
 
         return true;
     }

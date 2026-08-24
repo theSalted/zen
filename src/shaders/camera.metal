@@ -43,8 +43,10 @@ struct Camera {
 
             float3 ray_origin = (defocus_angle <= 0) ? camera_center : defocus_disk_sample(prng);
             float3 ray_direction = pixel_center - ray_origin;
+            float ray_time = prng.rand();
 
-            return {ray_origin, ray_direction};
+
+            return {ray_origin, ray_direction, ray_time};
         }
 
         float3 defocus_disk_sample(thread PRNG& prng) const {
