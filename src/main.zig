@@ -54,7 +54,7 @@ pub const RayTraceInput = extern struct {
 };
 
 pub fn main() !void {
-    return scene2();
+    return scene1();
 }
 
 fn scene1() !void {
@@ -266,7 +266,7 @@ fn scene1() !void {
 fn scene2() !void {
     const width = 1200;
     const height = 675;
-    const upscale_factor: u32 = 2;
+    const upscale_factor: u32 = 12;
     const move_speed: f32 = 1.0;
     const mouse_sensitivity: f32 = 0.003;
     const max_scene_objects = 1 + 22 * 22 + 3;
@@ -277,8 +277,8 @@ fn scene2() !void {
         .transform = .{ 13.0, 2.0, 3.0 },
         .lookat = .{ 0.0, 0.0, 0.0 },
         .vup = .{ 0.0, 1.0, 0.0 },
-        .samples_per_pixel = 10,
-        .ray_depth = 3,
+        .samples_per_pixel = 30,
+        .ray_depth = 6,
     };
     var window_width: u32 = width;
     var window_height: u32 = height;
@@ -298,7 +298,7 @@ fn scene2() !void {
         return error.MetalShaderLibraryFailed;
     defer library.deinit();
 
-    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_main") orelse
+    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_pixelated") orelse
         return error.MetalRenderPipelineFailed;
     defer render_pipeline.deinit();
 
@@ -356,7 +356,7 @@ fn scene2() !void {
                         random.float(f32) * random.float(f32),
                         random.float(f32) * random.float(f32),
                     };
-                    const center2 = center + Vector3{ 0.0, random.float(f32) * 0.5, 0.0 };
+                    const center2 = center + Vector3{ 0.0, 0.0, 0.0 };
                     materials[material_count] = .{ .type = .Lambertian, .albedo = albedo };
                     sphere = Sphere.moving(center, center2, 0.2, material_count);
                 } else if (choose_mat < 0.95) {
