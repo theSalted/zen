@@ -7,11 +7,13 @@ using namespace metal;
 #include "interval.metal"
 #include "ray.metal"
 #include "hit_record.metal"
+#include "aabb.metal"
 
 struct Sphere {
     Ray center;
     float radius;
     uint material_index;
+    AABB bbox;
 
     Sphere(float3 static_center, float radius, uint material_index) :
         center(static_center, float3(0.0, 0.0, 0.0), 0.0),

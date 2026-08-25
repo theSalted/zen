@@ -7,6 +7,7 @@ const Vector3 = common.Vector3;
 const Material = common.Material;
 const Sphere = common.Sphere;
 const Camera = @import("types/Camera.zig");
+const Scene = @import("types/Scene.zig").Scene;
 
 pub const RayTraceInput = extern struct {
     image_width: u32,
@@ -54,7 +55,7 @@ pub const RayTraceInput = extern struct {
 };
 
 pub fn main() !void {
-    return scene1();
+    return scene2();
 }
 
 fn scene1() !void {
@@ -264,12 +265,13 @@ fn scene1() !void {
 }
 
 fn scene2() !void {
+    const allocator = std.heap.smp_allocator;
+
     const width = 1200;
     const height = 675;
     const upscale_factor: u32 = 12;
     const move_speed: f32 = 1.0;
     const mouse_sensitivity: f32 = 0.003;
-    const max_scene_objects = 1 + 22 * 22 + 3;
 
     var prng = std.Random.DefaultPrng.init(12345);
     var random = prng.random();
@@ -325,15 +327,11 @@ fn scene2() !void {
         return error.MetalBufferFailed;
     defer param_buffer.deinit();
 
-    var materials: [max_scene_objects]Material = undefined;
-    var spheres: [max_scene_objects]Sphere = undefined;
-    var material_count: u32 = 0;
-    var sphere_count: u32 = 0;
+    var scene = Scene.init(allocator);
+    defer scene.deinit();
 
-    materials[material_count] = .{ .type = .Lambertian, .albedo = .{ 0.5, 0.5, 0.5 } };
-    spheres[sphere_count] = Sphere.stationary(.{ 0.0, -1000.0, 0.0 }, 1000.0, material_count);
-    material_count += 1;
-    sphere_count += 1;
+    const ground_material = try scene.addMaterial(.{ .type = .Lambertian, .albedo = .{ 0.5, 0.5, 0.5 } });
+    try scene.addSphere(Sphere.stationary(.{ 0.0, -1000.0, 0.0 }, 1000.0, ground_material));
 
     var a: i32 = -11;
     while (a < 11) : (a += 1) {
@@ -348,8 +346,6 @@ fn scene2() !void {
             const offset = center - Vector3{ 4.0, 0.2, 0.0 };
 
             if (@sqrt(@reduce(.Add, offset * offset)) > 0.9) {
-                var sphere = Sphere.stationary(center, 0.2, material_count);
-
                 if (choose_mat < 0.8) {
                     const albedo = Vector3{
                         random.float(f32) * random.float(f32),
@@ -357,8 +353,8 @@ fn scene2() !void {
                         random.float(f32) * random.float(f32),
                     };
                     const center2 = center + Vector3{ 0.0, 0.0, 0.0 };
-                    materials[material_count] = .{ .type = .Lambertian, .albedo = albedo };
-                    sphere = Sphere.moving(center, center2, 0.2, material_count);
+                    const material = try scene.addMaterial(.{ .type = .Lambertian, .albedo = albedo });
+                    try scene.addSphere(Sphere.moving(center, center2, 0.2, material));
                 } else if (choose_mat < 0.95) {
                     const albedo = Vector3{
                         0.5 + 0.5 * random.float(f32),
@@ -366,38 +362,30 @@ fn scene2() !void {
                         0.5 + 0.5 * random.float(f32),
                     };
                     const fuzz = 0.5 * random.float(f32);
-                    materials[material_count] = .{ .type = .Metal, .albedo = albedo, .fuzz = fuzz };
+                    const material = try scene.addMaterial(.{ .type = .Metal, .albedo = albedo, .fuzz = fuzz });
+                    try scene.addSphere(Sphere.stationary(center, 0.2, material));
                 } else {
-                    materials[material_count] = .{ .type = .Dialectric, .refraction_index = 1.5 };
+                    const material = try scene.addMaterial(.{ .type = .Dialectric, .refraction_index = 1.5 });
+                    try scene.addSphere(Sphere.stationary(center, 0.2, material));
                 }
-
-                spheres[sphere_count] = sphere;
-                material_count += 1;
-                sphere_count += 1;
             }
         }
     }
 
-    materials[material_count] = .{ .type = .Dialectric, .refraction_index = 1.5 };
-    spheres[sphere_count] = Sphere.stationary(.{ 0.0, 1.0, 0.0 }, 1.0, material_count);
-    material_count += 1;
-    sphere_count += 1;
+    const glass_material = try scene.addMaterial(.{ .type = .Dialectric, .refraction_index = 1.5 });
+    try scene.addSphere(Sphere.stationary(.{ 0.0, 1.0, 0.0 }, 1.0, glass_material));
 
-    materials[material_count] = .{ .type = .Lambertian, .albedo = .{ 0.4, 0.2, 0.1 } };
-    spheres[sphere_count] = Sphere.stationary(.{ -4.0, 1.0, 0.0 }, 1.0, material_count);
-    material_count += 1;
-    sphere_count += 1;
+    const matte_material = try scene.addMaterial(.{ .type = .Lambertian, .albedo = .{ 0.4, 0.2, 0.1 } });
+    try scene.addSphere(Sphere.stationary(.{ -4.0, 1.0, 0.0 }, 1.0, matte_material));
 
-    materials[material_count] = .{ .type = .Metal, .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 };
-    spheres[sphere_count] = Sphere.stationary(.{ 4.0, 1.0, 0.0 }, 1.0, material_count);
-    material_count += 1;
-    sphere_count += 1;
+    const metal_material = try scene.addMaterial(.{ .type = .Metal, .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 });
+    try scene.addSphere(Sphere.stationary(.{ 4.0, 1.0, 0.0 }, 1.0, metal_material));
 
-    const material_buffer = metal.Buffer.initWithBuffer(renderer, &materials) orelse
+    const material_buffer = metal.Buffer.initWithSlice(renderer, scene.materials.items) orelse
         return error.MetalBufferFailed;
     defer material_buffer.deinit();
 
-    const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
+    const sphere_buffer = metal.Buffer.initWithSlice(renderer, scene.spheres.items) orelse
         return error.MetalBufferFailed;
     defer sphere_buffer.deinit();
 
@@ -489,8 +477,8 @@ fn scene2() !void {
             camera_input,
             image_width,
             image_height,
-            sphere_count,
-            material_count,
+            @intCast(scene.spheresCount()),
+            @intCast(scene.materialsCount()),
         );
         param_buffer.write(&params);
 

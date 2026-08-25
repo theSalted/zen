@@ -11,12 +11,11 @@ using namespace metal;
 #include "prng.metal"
 #include "material.metal"
 
-struct World {
+struct Scene {
     constant Sphere* spheres;
     uint sphere_count;
     constant Material* materials;
     uint material_count;
-    uint ray_depth;
 
     bool hit(
         Ray ray,
@@ -40,16 +39,16 @@ struct World {
         return hit_anything;
     }
 
-    float3 trace(Ray ray, uint2 gid, uint sample_index) {
+    float3 trace(Ray ray, uint2 gid, uint sample_index, uint ray_depth) {
         PRNG prng = PRNG(gid.x, gid.y, sample_index);
         return trace(ray, prng, ray_depth);
     }
 
     private:
-        float3 trace(Ray ray, thread PRNG& prng, int depth) {
+        float3 trace(Ray ray, thread PRNG& prng, uint depth) {
             float3 attenuation = float3(1.0);
 
-            for (int i = 0; i < depth; i++) {
+            for (uint i = 0; i < depth; i++) {
                 HitRecord rec;
                 if (!hit(ray, Interval(0.001, INFINITY), rec)) {
                     return attenuation * sky(ray.direction);

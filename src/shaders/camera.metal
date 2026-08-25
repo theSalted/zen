@@ -5,7 +5,7 @@
 using namespace metal;
 
 #include "ray.metal"
-#include "world.metal"
+#include "scene.metal"
 #include "prng.metal"
 
 struct Camera {
@@ -18,12 +18,13 @@ struct Camera {
     float3 defocus_disk_v;
     float3 viewport_upper_left;
     uint samples_per_pixel;
+    uint ray_depth;
 
-    float3 render(World world, uint2 gid) {
+    float3 render(Scene scene, uint2 gid) {
         float3 color = float3(0.0);
         for (uint i = 0; i < samples_per_pixel; i++) {
             Ray ray = get_ray(gid, uint(i));
-            color += world.trace(ray, gid, uint(i));
+            color += scene.trace(ray, gid, uint(i), ray_depth);
         }
         color /= float(samples_per_pixel);
         color = linear_to_gamma(color);

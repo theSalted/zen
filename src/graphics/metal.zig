@@ -70,6 +70,18 @@ pub const Buffer = opaque {
         return metal_create_buffer(renderer, data, @sizeOf(@TypeOf(data.*)));
     }
 
+    pub fn initWithSlice(
+        renderer: *Renderer,
+        data: anytype,
+    ) ?*Buffer {
+        const info = @typeInfo(@TypeOf(data));
+        if (info != .pointer or info.pointer.size != .slice) {
+            @compileError("initWithSlice expects a slice");
+        }
+
+        return metal_create_buffer(renderer, data.ptr, data.len * @sizeOf(info.pointer.child));
+    }
+
     pub fn write(buffer: *Buffer, data: anytype) void {
         metal_buffer_write(buffer, data, @sizeOf(@TypeOf(data.*)));
     }

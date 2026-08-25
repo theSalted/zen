@@ -7,7 +7,7 @@ using namespace metal;
 #include "ray.metal"
 #include "hit_record.metal"
 #include "sphere.metal"
-#include "world.metal"
+#include "scene.metal"
 #include "camera.metal"
 #include "material.metal"
 
@@ -99,10 +99,10 @@ kernel void ray_trace_kernel(
         input.defocus_disk_v,
         input.viewport_upper_left,
         input.samples_per_pixel,
+        input.ray_depth,
     };
 
-    World world = {spheres, input.sphere_count, materials, input.material_count, input.ray_depth};
-
-    float3 color = camera.render(world, gid);
+    Scene scene = {spheres, input.sphere_count, materials, input.material_count};
+    float3 color = camera.render(scene, gid);
     image.write(float4(color, 1.0), gid);
 }
