@@ -29,4 +29,12 @@ pub const AABB = extern struct {
             .z = Interval.empty(),
         };
     }
+
+    pub fn axisInterval(self: AABB, axis: u32) Interval {
+        return switch (axis) {
+            1 => self.y,
+            2 => self.z,
+            else => self.x,
+        };
+    }
 };
