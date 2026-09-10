@@ -55,7 +55,7 @@ pub const RayTraceInput = extern struct {
 };
 
 pub fn main() !void {
-    return scene2();
+    return scene1();
 }
 
 fn scene1() !void {

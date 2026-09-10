@@ -11,7 +11,7 @@ pub const Scene = struct {
     materials: std.ArrayList(Material),
     bvh_nodes: std.ArrayList(BVHNode),
     bbox: AABB,
-    root_node: u32,
+    root_node: Ref,
 
     pub fn init(allocator: std.mem.Allocator) Scene {
         return .{
@@ -25,11 +25,12 @@ pub const Scene = struct {
     }
 
     pub fn buildBVH(self: *Scene) !void {
-        const indices = try self.allocator.alloc(u32, self.spheres.items.len);
+        const indices = try self.allocator.alloc(Ref, self.spheres.items.len);
         defer self.allocator.free(indices);
 
         for (indices, 0..) |*index, i| {
-            index.* = @intCast(i);
+            index.*.kind = .sphere;
+            index.*.index = @intCast(i);
         }
 
         try self.buildRange(indices, 0, indices.len, &self.root_node);
@@ -83,18 +84,18 @@ pub const Scene = struct {
         return self.materials.items.len;
     }
 
-    pub fn sortByAxis(scene: *const Scene, indices: []u32, axis: u32) void {
+    pub fn sortByAxis(scene: *const Scene, refs: []Ref, axis: u32) void {
         const Context = struct {
             scene: *const Scene,
             axis: u32,
 
-            fn lessThan(ctx: @This(), a: u32, b: u32) bool {
-                const box1 = ctx.scene.spheres.items[a].bbox.axisInterval(ctx.axis);
-                const box2 = ctx.scene.spheres.items[b].bbox.axisInterval(ctx.axis);
+            fn lessThan(ctx: @This(), a: Ref, b: Ref) bool {
+                const box1 = ctx.scene.spheres.items[a.index].bbox.axisInterval(ctx.axis);
+                const box2 = ctx.scene.spheres.items[b.index].bbox.axisInterval(ctx.axis);
                 return box1.min < box2.min;
             }
         };
 
-        std.mem.sort(u32, indices, Context{ .scene = scene, .axis = axis }, Context.lessThan);
+        std.mem.sort(Ref, refs, Context{ .scene = scene, .axis = axis }, Context.lessThan);
     }
 };

@@ -9,6 +9,7 @@ pub const Ref = extern struct {
         node = 1,
     };
 };
+
 pub const BVHNode = extern struct {
     bbox: AABB,
     lhs: Ref,

@@ -11,8 +11,6 @@ struct Ref {
 
 struct BVHNode {
     AABB bbox;
-    uint lhs;
-    uint rhs;
-    uint sphere_index;
-    uint kind; // 0 == leaf, 1 == branch`
+    Ref lhs;
+    Ref rhs;
 };
