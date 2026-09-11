@@ -11,7 +11,7 @@ pub const Scene = struct {
     materials: std.ArrayList(Material),
     bvh_nodes: std.ArrayList(BVHNode),
     bbox: AABB,
-    root_node: Ref,
+    root_node: ?Ref,
 
     pub fn init(allocator: std.mem.Allocator) Scene {
         return .{
@@ -20,11 +20,16 @@ pub const Scene = struct {
             .materials = .empty,
             .bvh_nodes = .empty,
             .bbox = AABB.empty(),
-            .root_node = undefined,
+            .root_node = null,
         };
     }
 
     pub fn buildBVH(self: *Scene) !void {
+        if (self.spheres.items.len == 0) {
+            self.root_node = null;
+            return;
+        }
+
         const indices = try self.allocator.alloc(Ref, self.spheres.items.len);
         defer self.allocator.free(indices);
 
@@ -33,7 +38,9 @@ pub const Scene = struct {
             index.*.index = @intCast(i);
         }
 
-        try self.buildRange(indices, 0, indices.len, &self.root_node);
+        var root: Ref = undefined;
+        try self.buildRange(indices, 0, indices.len, &root);
+        self.root_node = root;
     }
 
     fn buildRange(self: *Scene, refs: []Ref, start: usize, end: usize, out: *Ref) !void {
@@ -42,9 +49,37 @@ pub const Scene = struct {
         if (span == 1) {
             out.* = refs[start];
             return;
-        }
+        } else {
+            self.sortByAxis(refs[start..end], 0);
+            const mid = (end - start) / 2 + start;
+            var left: Ref = undefined;
+            var right: Ref = undefined;
+            try self.buildRange(refs, start, mid, &left);
+            try self.buildRange(refs, mid, end, &right);
 
-        _ = self;
+            const leftBB = switch (left.kind) {
+                .sphere => self.spheres.items[left.index].bbox,
+                .node => self.bvh_nodes.items[left.index].bbox,
+            };
+            const rightBB = switch (right.kind) {
+                .sphere => self.spheres.items[right.index].bbox,
+                .node => self.bvh_nodes.items[right.index].bbox,
+            };
+
+            const bbox = AABB.initFromAABB(leftBB, rightBB);
+            const node_index: u32 = @intCast(self.bvh_nodes.items.len);
+
+            try self.bvh_nodes.append(self.allocator, .{
+                .bbox = bbox,
+                .lhs = left,
+                .rhs = right,
+            });
+
+            out.* = .{
+                .kind = .node,
+                .index = node_index,
+            };
+        }
     }
 
     pub fn deinit(self: *Scene) void {
