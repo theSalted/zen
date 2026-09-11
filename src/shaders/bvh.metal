@@ -1,7 +1,10 @@
+#ifndef ZEN_BVH_METAL
+#define ZEN_BVH_METAL
+
 #include "aabb.metal"
 
 enum Kind: uint {
-    sphere, node
+    node, none, sphere
 };
 
 struct Ref {
@@ -14,3 +17,5 @@ struct BVHNode {
     Ref lhs;
     Ref rhs;
 };
+
+#endif

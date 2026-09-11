@@ -11,7 +11,7 @@ pub const Scene = struct {
     materials: std.ArrayList(Material),
     bvh_nodes: std.ArrayList(BVHNode),
     bbox: AABB,
-    root_node: ?Ref,
+    root_node: Ref,
 
     pub fn init(allocator: std.mem.Allocator) Scene {
         return .{
@@ -20,13 +20,13 @@ pub const Scene = struct {
             .materials = .empty,
             .bvh_nodes = .empty,
             .bbox = AABB.empty(),
-            .root_node = null,
+            .root_node = undefined,
         };
     }
 
     pub fn buildBVH(self: *Scene) !void {
         if (self.spheres.items.len == 0) {
-            self.root_node = null;
+            self.root_node = .{ .kind = .none, .index = 0 };
             return;
         }
 
@@ -58,12 +58,14 @@ pub const Scene = struct {
             try self.buildRange(refs, mid, end, &right);
 
             const leftBB = switch (left.kind) {
-                .sphere => self.spheres.items[left.index].bbox,
                 .node => self.bvh_nodes.items[left.index].bbox,
+                .none => return error.NoBBFromNone,
+                .sphere => self.spheres.items[left.index].bbox,
             };
             const rightBB = switch (right.kind) {
-                .sphere => self.spheres.items[right.index].bbox,
                 .node => self.bvh_nodes.items[right.index].bbox,
+                .none => return error.NoBBFromNone,
+                .sphere => self.spheres.items[right.index].bbox,
             };
 
             const bbox = AABB.initFromAABB(leftBB, rightBB);

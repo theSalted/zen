@@ -5,8 +5,9 @@ pub const Ref = extern struct {
     index: u32,
 
     pub const Kind = enum(u32) {
-        sphere = 0,
-        node = 1,
+        node = 0,
+        none = 1,
+        sphere = 2,
     };
 };
 

@@ -10,29 +10,51 @@ using namespace metal;
 #include "sphere.metal"
 #include "prng.metal"
 #include "material.metal"
+#include "bvh.metal"
 
 struct Scene {
     constant Sphere* spheres;
     uint sphere_count;
     constant Material* materials;
     uint material_count;
+    constant BVHNode* nodes;
+    Ref ref;
 
     bool hit(
         Ray ray,
         Interval ray_t,
         thread HitRecord& rec
     ) {
+        Ref stack[64]; // large enough for pretty much anything scene
+        uint stack_size = 0;
+
         HitRecord temp_rec;
         bool hit_anything = false;
         float closest_so_far = ray_t.max;
 
-        for (uint i = 0; i < sphere_count; i += 1) {
-            Sphere sphere = spheres[i];
+        stack[stack_size++] = ref;
 
-            if (sphere.hit(ray, Interval(ray_t.min, closest_so_far), temp_rec)) {
-                hit_anything = true;
-                closest_so_far = temp_rec.t;
-                rec = temp_rec;
+        while(stack_size > 0) {
+            Ref current = stack[--stack_size];
+            switch (current.kind) {
+            case Kind::node: {
+                BVHNode node = nodes[current.index];
+                if (node.bbox.hit(ray, Interval(ray_t.min, closest_so_far))) {
+                    stack[stack_size++] = node.rhs;
+                    stack[stack_size++] = node.lhs;
+                }
+                break;
+            }
+            case Kind::none:
+                return false;
+            case Kind::sphere:
+                Sphere sphere = spheres[current.index];
+                if (sphere.hit(ray, Interval(ray_t.min, closest_so_far), temp_rec)) {
+                    hit_anything = true;
+                    closest_so_far = temp_rec.t;
+                    rec = temp_rec;
+                }
+                break;
             }
         }
 

@@ -1,3 +1,6 @@
+#ifndef ZEN_AABB_METAL
+#define ZEN_AABB_METAL
+
 #include "interval.metal"
 #include "ray.metal"
 
@@ -45,3 +48,5 @@ struct AABB {
         return true;
     }
 };
+
+#endif

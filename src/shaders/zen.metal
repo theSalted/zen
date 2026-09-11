@@ -10,6 +10,7 @@ using namespace metal;
 #include "scene.metal"
 #include "camera.metal"
 #include "material.metal"
+#include "bvh.metal"
 
 struct VertexOut {
     float4 position [[position]];
@@ -73,6 +74,7 @@ struct RayTraceInput {
 
     uint sphere_count;
     uint material_count;
+    Ref root;
 };
 
 kernel void ray_trace_kernel(
@@ -80,6 +82,7 @@ kernel void ray_trace_kernel(
     constant RayTraceInput& input [[buffer(0)]],
     constant Sphere* spheres [[buffer(1)]],
     constant Material* materials [[buffer(2)]],
+    constant BVHNode* nodes [[buffer(3)]],
     uint2 gid [[thread_position_in_grid]]
 ) {
     uint width = image.get_width();
@@ -102,7 +105,14 @@ kernel void ray_trace_kernel(
         input.ray_depth,
     };
 
-    Scene scene = {spheres, input.sphere_count, materials, input.material_count};
+    Scene scene = {
+        spheres,
+        input.sphere_count,
+        materials,
+        input.material_count,
+        nodes,
+        input.root,
+    };
     float3 color = camera.render(scene, gid);
     image.write(float4(color, 1.0), gid);
 }

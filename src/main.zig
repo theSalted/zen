@@ -8,6 +8,7 @@ const Material = common.Material;
 const Sphere = common.Sphere;
 const Camera = @import("types/Camera.zig");
 const Scene = @import("types/Scene.zig").Scene;
+const Ref = @import("types/BVHNode.zig").Ref;
 
 pub const RayTraceInput = extern struct {
     image_width: u32,
@@ -27,6 +28,7 @@ pub const RayTraceInput = extern struct {
 
     sphere_count: u32,
     material_count: u32,
+    root: Ref,
 
     pub fn fromCamera(
         camera_input: Camera.ShaderInput,
@@ -34,6 +36,7 @@ pub const RayTraceInput = extern struct {
         image_height: u32,
         sphere_count: u32,
         material_count: u32,
+        root: Ref,
     ) RayTraceInput {
         return .{
             .image_width = image_width,
@@ -50,12 +53,13 @@ pub const RayTraceInput = extern struct {
             .ray_depth = camera_input.ray_depth,
             .sphere_count = sphere_count,
             .material_count = material_count,
+            .root = root,
         };
     }
 };
 
 pub fn main() !void {
-    return scene1();
+    return scene2();
 }
 
 fn scene1() !void {
@@ -72,6 +76,8 @@ fn scene1() !void {
     var image_height: u32 = scaledDimension(height, upscale_factor);
     var camera_control = CameraControl{};
     var last_frame_ns = zen.Runtime.ticksNS();
+
+    const allocator = std.heap.smp_allocator;
 
     var runtime = try zen.Runtime.init(width, height);
     defer runtime.deinit();
@@ -111,6 +117,9 @@ fn scene1() !void {
         return error.MetalBufferFailed;
     defer param_buffer.deinit();
 
+    var scene = Scene.init(allocator);
+    defer scene.deinit();
+
     const material_ground: Material = .{ .type = .Lambertian, .albedo = .{ 0.8, 0.8, 0.0 } };
     const material_center: Material = .{ .type = .Lambertian, .albedo = .{ 0.1, 0.2, 0.5 } };
     const material_left: Material = .{ .type = .Dialectric, .refraction_index = 1.50 };
@@ -124,7 +133,10 @@ fn scene1() !void {
         material_right,
         material_bubble,
     };
-    const material_buffer = metal.Buffer.initWithBuffer(renderer, &materials) orelse
+
+    try scene.addMaterials(&materials);
+
+    const material_buffer = metal.Buffer.initWithSlice(renderer, scene.materials.items) orelse
         return error.MetalBufferFailed;
     defer material_buffer.deinit();
 
@@ -135,9 +147,17 @@ fn scene1() !void {
         Sphere.stationary(.{ -1.0, 0.0, -1.0 }, 0.4, 4),
         Sphere.stationary(.{ 1.0, 0.0, -1.0 }, 0.5, 3),
     };
-    const sphere_buffer = metal.Buffer.initWithBuffer(renderer, &spheres) orelse
+
+    try scene.addSpheres(&spheres);
+    const sphere_buffer = metal.Buffer.initWithSlice(renderer, scene.spheres.items) orelse
         return error.MetalBufferFailed;
     defer sphere_buffer.deinit();
+
+    try scene.buildBVH();
+
+    const nodes_buffer = metal.Buffer.initWithSlice(renderer, scene.bvh_nodes.items) orelse
+        return error.MetalBufferFailed;
+    defer nodes_buffer.deinit();
 
     while (runtime.isRunning()) {
         const frame_ns = zen.Runtime.ticksNS();
@@ -234,6 +254,7 @@ fn scene1() !void {
             image_height,
             spheres.len,
             materials.len,
+            scene.root_node,
         );
         param_buffer.write(&params);
 
@@ -242,6 +263,7 @@ fn scene1() !void {
         compute_pass.setBuffer(0, param_buffer);
         compute_pass.setBuffer(1, sphere_buffer);
         compute_pass.setBuffer(2, material_buffer);
+        compute_pass.setBuffer(3, nodes_buffer);
         compute_pass.dispatch(image_width, image_height, 1);
         compute_pass.end();
 
@@ -269,7 +291,7 @@ fn scene2() !void {
 
     const width = 1200;
     const height = 675;
-    const upscale_factor: u32 = 12;
+    const upscale_factor: u32 = 1;
     const move_speed: f32 = 1.0;
     const mouse_sensitivity: f32 = 0.003;
 
@@ -279,8 +301,8 @@ fn scene2() !void {
         .transform = .{ 13.0, 2.0, 3.0 },
         .lookat = .{ 0.0, 0.0, 0.0 },
         .vup = .{ 0.0, 1.0, 0.0 },
-        .samples_per_pixel = 30,
-        .ray_depth = 6,
+        .samples_per_pixel = 5,
+        .ray_depth = 4,
     };
     var window_width: u32 = width;
     var window_height: u32 = height;
@@ -300,7 +322,7 @@ fn scene2() !void {
         return error.MetalShaderLibraryFailed;
     defer library.deinit();
 
-    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_pixelated") orelse
+    const render_pipeline = metal.RenderPipeline.init(renderer, library, "vertex_main", "fragment_main") orelse
         return error.MetalRenderPipelineFailed;
     defer render_pipeline.deinit();
 
@@ -381,6 +403,8 @@ fn scene2() !void {
     const metal_material = try scene.addMaterial(.{ .type = .Metal, .albedo = .{ 0.7, 0.6, 0.5 }, .fuzz = 0.0 });
     try scene.addSphere(Sphere.stationary(.{ 4.0, 1.0, 0.0 }, 1.0, metal_material));
 
+    try scene.buildBVH();
+
     const material_buffer = metal.Buffer.initWithSlice(renderer, scene.materials.items) orelse
         return error.MetalBufferFailed;
     defer material_buffer.deinit();
@@ -388,6 +412,10 @@ fn scene2() !void {
     const sphere_buffer = metal.Buffer.initWithSlice(renderer, scene.spheres.items) orelse
         return error.MetalBufferFailed;
     defer sphere_buffer.deinit();
+
+    const nodes_buffer = metal.Buffer.initWithSlice(renderer, scene.bvh_nodes.items) orelse
+        return error.MetalBufferFailed;
+    defer nodes_buffer.deinit();
 
     while (runtime.isRunning()) {
         const frame_ns = zen.Runtime.ticksNS();
@@ -479,6 +507,7 @@ fn scene2() !void {
             image_height,
             @intCast(scene.spheresCount()),
             @intCast(scene.materialsCount()),
+            scene.root_node,
         );
         param_buffer.write(&params);
 
@@ -487,6 +516,7 @@ fn scene2() !void {
         compute_pass.setBuffer(0, param_buffer);
         compute_pass.setBuffer(1, sphere_buffer);
         compute_pass.setBuffer(2, material_buffer);
+        compute_pass.setBuffer(3, nodes_buffer);
         compute_pass.dispatch(image_width, image_height, 1);
         compute_pass.end();
 
